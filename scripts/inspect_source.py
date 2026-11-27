@@ -1,9 +1,11 @@
-"""Validate a public source URL and produce a provenance intake report.
+"""Inspect an authorized public source and prepare a Hebrew corpus candidate.
 
-This stage deliberately does not execute submitted repository code or train weights.
+Only bounded, public HTTPS sources are accepted. This script never executes repository code.
+The caller must have rights to use all selected text for model training.
 """
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import os
@@ -20,8 +22,11 @@ from bs4 import BeautifulSoup
 
 MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
 MAX_ARCHIVE_FILES = 500
-ALLOWED_TEXT_SUFFIXES = {".txt", ".md", ".html", ".htm", ".rst"}
-USER_AGENT = "IvritLM-SourceInspector/0.1 (+https://github.com/avtsye/IvritLM)"
+MAX_FILE_BYTES = 2 * 1024 * 1024
+MAX_CORPUS_BYTES = 5 * 1024 * 1024
+ALLOWED_TEXT_SUFFIXES = {".txt", ".md", ".rst", ".html", ".htm"}
+USER_AGENT = "IvritLM-SourceInspector/0.2 (+https://github.com/avtsye/IvritLM)"
+HEBREW_RE = re.compile(r"[\u0590-\u05ff]")
 
 
 def validate_public_https(url: str) -> str:
@@ -54,13 +59,8 @@ def bounded_get(url: str) -> requests.Response:
     current = validate_public_https(url)
     session = requests.Session()
     for _ in range(4):
-        response = session.get(
-            current,
-            headers={"User-Agent": USER_AGENT},
-            stream=True,
-            timeout=(10, 30),
-            allow_redirects=False,
-        )
+        response = session.get(current, headers={"User-Agent": USER_AGENT},
+                               stream=True, timeout=(10, 30), allow_redirects=False)
         if response.is_redirect or response.is_permanent_redirect:
             location = response.headers.get("Location")
             response.close()
@@ -84,7 +84,83 @@ def bounded_get(url: str) -> requests.Response:
     raise ValueError("Too many redirects.")
 
 
-def inspect_github(url: str) -> dict:
+def clean_text(raw: bytes, suffix: str = ".txt") -> str:
+    text = raw.decode("utf-8-sig", errors="replace")
+    if suffix in {".html", ".htm"}:
+        soup = BeautifulSoup(text, "html.parser")
+        for node in soup(["script", "style", "noscript", "svg", "nav", "footer", "header"]):
+            node.decompose()
+        text = soup.get_text("\n", strip=True)
+    text = text.replace("\x00", " ")
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    return "\n".join(lines).strip()
+
+
+def is_hebrew_text(text: str) -> bool:
+    letters = [c for c in text if c.isalpha()]
+    if len(letters) < 100:
+        return False
+    return sum(bool(HEBREW_RE.match(c)) for c in letters) / len(letters) >= 0.15
+
+
+def write_corpus(documents: list[tuple[str, str]], report: dict) -> dict:
+    output = Path("artifacts/source-intake")
+    output.mkdir(parents=True, exist_ok=True)
+    chunks = []
+    seen = set()
+    total = 0
+    accepted = 0
+    for label, text in documents:
+        normalized = text.strip()
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        if not normalized or digest in seen or not is_hebrew_text(normalized):
+            continue
+        encoded = (normalized + "\n").encode("utf-8")
+        if total + len(encoded) > MAX_CORPUS_BYTES:
+            break
+        seen.add(digest)
+        chunks.append(f"\n\n### מקור: {label}\n\n{normalized}")
+        total += len(encoded)
+        accepted += 1
+    if not chunks:
+        raise ValueError(
+            "לא נמצאו מסמכי טקסט בעברית באיכות/אורך המתאימים. "
+            "נסה מאגר עם קובצי TXT/MD בעברית או עמוד עברי ארוך יותר."
+        )
+    corpus = ("\n".join(chunks) + "\n").encode("utf-8")
+    corpus_path = output / "corpus.txt"
+    corpus_path.write_bytes(corpus)
+    corpus_sha = hashlib.sha256(corpus).hexdigest()
+    manifest = {
+        "project": "IvritLM",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source_url": report["canonical_url"],
+        "source_type": report["source_type"],
+        "license_review_required": True,
+        "authorization_acknowledged": True,
+        "accepted_document_count": accepted,
+        "corpus_bytes": len(corpus),
+        "corpus_sha256": corpus_sha,
+        "language_filter": "At least 15% Hebrew letters and 100 alphabetic characters per document",
+        "deduplication": "SHA-256 of normalized document text",
+    }
+    (output / "corpus-manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    report.update({
+        "stage": "corpus_candidate_created",
+        "training_started": False,
+        "accepted_document_count": accepted,
+        "corpus_bytes": len(corpus),
+        "corpus_sha256": corpus_sha,
+        "corpus_path": "artifacts/source-intake/corpus.txt",
+        "note": "A Hebrew corpus candidate was prepared. Review source rights and the corpus before starting training.",
+    })
+    return manifest
+
+
+def inspect_github(url: str) -> tuple[dict, list[tuple[str, str]]]:
     parsed = urlparse(url)
     if parsed.hostname != "github.com":
         raise ValueError("GitHub sources must use github.com.")
@@ -93,8 +169,7 @@ def inspect_github(url: str) -> dict:
         raise ValueError("Expected https://github.com/owner/repository")
     owner, repo = match.groups()
     repo = repo.removesuffix(".git")
-    metadata_response = bounded_get(f"https://api.github.com/repos/{owner}/{repo}")
-    metadata = metadata_response.json()
+    metadata = bounded_get(f"https://api.github.com/repos/{owner}/{repo}").json()
     if metadata.get("private") is not False:
         raise ValueError("Only public GitHub repositories are accepted.")
     branch = metadata.get("default_branch") or "main"
@@ -102,61 +177,57 @@ def inspect_github(url: str) -> dict:
     archive_path = Path("artifacts/source-intake/source.zip")
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     archive_path.write_bytes(archive_response._ivritlm_body)
-    text_files = 0
-    text_bytes = 0
+    docs = []
+    total_unpacked = 0
     with zipfile.ZipFile(archive_path) as archive:
         members = archive.infolist()
         if len(members) > MAX_ARCHIVE_FILES:
             raise ValueError(f"Repository archive exceeds {MAX_ARCHIVE_FILES} files.")
         for member in members:
-            if member.is_dir():
+            if member.is_dir() or Path(member.filename).suffix.lower() not in ALLOWED_TEXT_SUFFIXES:
                 continue
-            if Path(member.filename).suffix.lower() not in ALLOWED_TEXT_SUFFIXES:
+            if member.file_size > MAX_FILE_BYTES:
                 continue
-            if member.file_size > 2 * 1024 * 1024:
-                continue
-            text_files += 1
-            text_bytes += member.file_size
+            total_unpacked += member.file_size
+            if total_unpacked > MAX_DOWNLOAD_BYTES:
+                break
+            raw = archive.read(member)
+            text = clean_text(raw, Path(member.filename).suffix.lower())
+            if is_hebrew_text(text):
+                docs.append((member.filename, text))
     archive_path.unlink(missing_ok=True)
-    return {
+    report = {
         "source_type": "github",
         "canonical_url": metadata.get("html_url", url),
         "repository": metadata.get("full_name"),
         "default_branch": branch,
         "license_spdx_id": (metadata.get("license") or {}).get("spdx_id"),
         "license_review_required": True,
-        "candidate_text_file_count": text_files,
-        "candidate_text_bytes": text_bytes,
-        "note": "Repository files were not executed, ingested, or used for training; only archive metadata was inspected.",
+        "candidate_text_file_count": len(docs),
     }
+    return report, docs
 
 
-def inspect_web(url: str) -> dict:
+def inspect_web(url: str) -> tuple[dict, list[tuple[str, str]]]:
     response = bounded_get(url)
     content_type = response.headers.get("Content-Type", "")
     if "text/html" not in content_type and "text/plain" not in content_type:
         raise ValueError(f"Unsupported content type: {content_type or 'unknown'}. Use HTML or plain text.")
     raw = response._ivritlm_body
-    text = raw.decode(response.encoding or "utf-8", errors="replace")
+    text = clean_text(raw, ".html" if "html" in content_type else ".txt")
     title = ""
     if "html" in content_type:
-        soup = BeautifulSoup(text, "html.parser")
-        for node in soup(["script", "style", "noscript", "svg"]):
-            node.decompose()
-        extracted = soup.get_text(" ", strip=True)
+        soup = BeautifulSoup(raw.decode(response.encoding or "utf-8", errors="replace"), "html.parser")
         title = soup.title.get_text(" ", strip=True) if soup.title else ""
-    else:
-        extracted = text
-    return {
+    report = {
         "source_type": "web",
         "canonical_url": response.url,
         "page_title": title[:300],
         "content_type": content_type,
         "downloaded_bytes": len(raw),
-        "extracted_character_count": len(extracted),
         "license_review_required": True,
-        "note": "Page content was inspected for metadata only; it was not approved, added to a corpus, or used for training.",
     }
+    return report, [(response.url, text)]
 
 
 def main() -> int:
@@ -166,23 +237,26 @@ def main() -> int:
         print("SOURCE_URL is required.", file=sys.stderr)
         return 2
     try:
-        result = inspect_github(url) if kind == "github" else inspect_web(url) if kind == "web" else None
-        if result is None:
+        if kind == "github":
+            report, documents = inspect_github(url)
+        elif kind == "web":
+            report, documents = inspect_web(url)
+        else:
             raise ValueError("SOURCE_KIND must be github or web.")
-        result.update({
+        report.update({
             "created_at": datetime.now(timezone.utc).isoformat(),
             "project": "IvritLM",
-            "stage": "source_intake_only",
-            "training_started": False,
             "license_acknowledgement": "confirmed_by_workflow_dispatcher",
         })
+        manifest = write_corpus(documents, report)
         output = Path("artifacts/source-intake")
-        output.mkdir(parents=True, exist_ok=True)
-        (output / "report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        (output / "report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        print(json.dumps({"report": report, "corpus_manifest": manifest}, ensure_ascii=False, indent=2))
         return 0
     except (ValueError, requests.RequestException, zipfile.BadZipFile, OSError) as exc:
-        print(f"Source inspection failed: {exc}", file=sys.stderr)
+        print(f"Source intake failed: {exc}", file=sys.stderr)
         return 1
 
 
