@@ -1,11 +1,7 @@
 name: Deploy IvritLM dashboard
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "site/**"
-      - ".github/workflows/pages.yml"
+  # GitHub Pages is optional; the project currently uses raw.githack.
   workflow_dispatch:
 
 permissions:
