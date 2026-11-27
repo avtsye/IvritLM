@@ -13,7 +13,7 @@ SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
 CHUNK_SIZE = 8 * 1024 * 1024
-ROOT_FOLDER_NAME = "IvritLM Models"
+ROOT_FOLDER_NAME = "IvritLM Models"\nCORPUS_FOLDER_NAME = "IvritLM Corpora"
 
 
 def drive_session():
@@ -211,11 +211,11 @@ def upload_model():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["download-checkpoint", "upload-checkpoint", "upload-model"])
+    parser.add_argument("command", choices=["download-checkpoint", "upload-checkpoint", "upload-model", "upload-corpus", "download-corpus"])
     args = parser.parse_args()
     {"download-checkpoint": download_checkpoint,
      "upload-checkpoint": upload_checkpoint,
-     "upload-model": upload_model}[args.command]()
+     "upload-model": upload_model,\n     "upload-corpus": upload_corpus,\n     "download-corpus": download_corpus}[args.command]()
 
 
 if __name__ == "__main__":
