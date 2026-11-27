@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       corpus_path:
-        description: Path to an approved UTF-8 .txt corpus already committed to this repository
-        required: true
+        description: Optional repository TXT path; leave empty to use the latest corpus saved in Drive
+        required: false
+        default: ""
         type: string
       steps:
         description: Additional optimizer steps for this run (hosted CPU limit)
@@ -70,15 +71,19 @@ jobs:
               raise SystemExit("Configure these repository secrets before training: " + ", ".join(missing))
           steps = int(os.environ["STEPS"])
           batch = int(os.environ["BATCH_SIZE"])
-          path = Path(os.environ["CORPUS_PATH"]).resolve()
-          root = Path.cwd().resolve()
+          corpus_value = os.environ.get("CORPUS_PATH", "").strip()
           if not 1 <= steps <= 1000:
               raise SystemExit("steps must be between 1 and 1000 on the hosted CPU runner")
           if not 1 <= batch <= 16:
               raise SystemExit("batch_size must be between 1 and 16")
-          if root not in path.parents or path.suffix.lower() != ".txt" or not path.is_file():
-              raise SystemExit("corpus_path must point to an existing .txt file inside the repository")
-          print(f"Validated corpus path: {path.relative_to(root)}")
+          if corpus_value:
+              path = Path(corpus_value).resolve()
+              root = Path.cwd().resolve()
+              if root not in path.parents or path.suffix.lower() != ".txt" or not path.is_file():
+                  raise SystemExit("corpus_path must point to an existing .txt file inside the repository")
+              print(f"Validated repository corpus path: {path.relative_to(root)}")
+          else:
+              print("No repository corpus supplied; latest corpus will be restored from Google Drive.")
           PY
 
       - name: Restore the latest checkpoint from Google Drive
@@ -89,12 +94,22 @@ jobs:
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
         run: python scripts/drive_storage.py download-checkpoint
 
-      - name: Continue training from the previous weights and optimizer state
+      - name: Restore latest corpus from Google Drive when no path was supplied
+        if: ${{ inputs.corpus_path == '' }}
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py download-corpus
+
+      - name: Continue training from previous weights and optimizer state
         env:
           CORPUS_PATH: ${{ inputs.corpus_path }}
           STEPS: ${{ inputs.steps }}
           BATCH_SIZE: ${{ inputs.batch_size }}
         run: |
+          if [ -z "$CORPUS_PATH" ]; then CORPUS_PATH="artifacts/pretraining/corpus.txt"; fi
           python scripts/train.py \
             --corpus "$CORPUS_PATH" \
             --steps "$STEPS" \
