@@ -39,7 +39,7 @@ jobs:
           python -m pip install --disable-pip-version-check "gguf>=0.1.0" "transformers==4.57.6" "sentencepiece>=0.1.98,<0.3.0" "protobuf>=4.21.0,<5.0.0"
 
       - name: Run model unit and incremental-resume tests
-        run: python -m pytest -q
+        run: python -m pytest -q tests
 
       - name: Run end-to-end CPU smoke training
         run: python scripts/smoke_train.py
