@@ -6,7 +6,7 @@ on:
       - "ivritlm/**"
       - "tests/**"
       - "scripts/smoke_train.py"
-      - "scripts/export_hf.py"
+      - "scripts/export_hf.py"\n      - "scripts/inspect_source.py"\n      - "scripts/drive_storage.py"\n      - "requirements-intake.txt"
       - ".github/workflows/smoke-train.yml"
   workflow_dispatch:
 
@@ -35,7 +35,7 @@ jobs:
 
       - name: Install model and conversion dependencies
         run: |
-          python -m pip install --disable-pip-version-check -r requirements-model.txt
+          python -m pip install --disable-pip-version-check -r requirements-intake.txt -r requirements-model.txt
           python -m pip install --disable-pip-version-check "gguf>=0.1.0" "transformers==4.57.6" "sentencepiece>=0.1.98,<0.3.0" "protobuf>=4.21.0,<5.0.0"
 
       - name: Run model unit and incremental-resume tests
