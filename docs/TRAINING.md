@@ -114,7 +114,7 @@ The text in data/smoke/hebrew_sample.txt is synthetic test material only, not a 
 6. It trains, saves a new checkpoint, exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to the module-version folder.
 7. GitHub Actions also stores a secondary 14-day copy.
 
-The source-intake process creates a corpus candidate; it does not certify copyright or usage rights. Only use sources for which you have explicit authorization. Dashboard paste intake is limited to 40,000 characters per run; multiple batches can be added. Each ingestion updates the latest-corpus pointer. The current model is a small from-scratch Transformer prototype with a UTF-8 byte tokenizer. A short CPU run is an engineering experiment, not meaningful pretraining. The hosted workflow uses CPU and does not promise free GPU training.
+The source-intake process creates a corpus candidate; it does not certify copyright or usage rights. Only use sources for which you have explicit authorization. Dashboard paste intake is limited to 40,000 characters per run; multiple batches are appended to a cumulative corpus with duplicate-record filtering. The current model is a small from-scratch Transformer prototype with a UTF-8 byte tokenizer. A short CPU run is an engineering experiment, not meaningful pretraining. The hosted workflow uses CPU and does not promise free GPU training.
 
 ## GGUF conversion status
 
