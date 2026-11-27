@@ -16,6 +16,8 @@
 
 ## Start here
 
+- Open the [training dashboard](https://avtsye.github.io/IvritLM/) to submit a public source and inspect Actions runs (after Pages is enabled). See [dashboard setup and limitations](docs/TRAINING_DASHBOARD.md).
+
 | If you want to… | Read |
 |---|---|
 | Understand the project and its status | This README |
