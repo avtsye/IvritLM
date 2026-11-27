@@ -10,7 +10,7 @@ The Pages workflow deploys the site/ directory. The expected address is:
 
 https://avtsye.github.io/IvritLM/
 
-GitHub Pages must be enabled for this repository with GitHub Actions as the publishing source. The address becomes active only after a successful Pages deployment. Check the Pages workflow in the Actions tab.
+GitHub Pages must be enabled once by a repository administrator: open Settings → Pages → Build and deployment → Source, then select GitHub Actions. The current Pages workflow cannot enable Pages automatically because GitHub does not grant the workflow token permission to create the Pages site. After this one-time setting is saved, rerun the Pages workflow. The address becomes active only after a successful deployment.
 
 ## GitHub token
 
