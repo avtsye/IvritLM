@@ -4,6 +4,10 @@ import json
 import os
 from pathlib import Path
 
+# Use the operating system trust store while preserving TLS verification.
+import truststore
+truststore.inject_into_ssl()
+
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.credentials import Credentials
 
