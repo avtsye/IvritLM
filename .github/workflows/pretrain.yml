@@ -29,6 +29,8 @@ concurrency:
 jobs:
   pretrain:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
     timeout-minutes: 120
     steps:
       - name: Checkout IvritLM
