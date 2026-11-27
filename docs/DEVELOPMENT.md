@@ -9,59 +9,56 @@
 
 ## Setup
 
-```bash
-git clone https://github.com/avtsye/IvritLM.git
-cd IvritLM
-python -m venv .venv
-```
+Clone the repository, create a Python 3.11 virtual environment, and install:
 
-Activate the environment:
+    python -m pip install -r requirements-intake.txt -r requirements-model.txt
+    python -m pytest -q
+    python scripts/smoke_train.py
 
-- Windows PowerShell: `.venv\\Scripts\\Activate.ps1`
-- Linux/macOS: `source .venv/bin/activate`
+## Run incremental training locally
 
-Install pinned dependencies and run the test suite:
+First run:
 
-```bash
-python -m pip install -r requirements-intake.txt -r requirements-model.txt
-python -m pytest -q
-python scripts/smoke_train.py
-```
+    python scripts/train.py --corpus data/corpus/train.txt --steps 100 --batch-size 4 --output artifacts/pretraining
 
-## Run a training experiment
+Continue from the same checkpoint:
 
-```bash
-python scripts/train.py --corpus data/corpus/train.txt --steps 100 --batch-size 4 --output artifacts/pretraining
-```
+    python scripts/train.py --corpus data/corpus/train.txt --steps 100 --batch-size 4 --output artifacts/pretraining --resume artifacts/pretraining/checkpoint.pt
 
-The corpus must be UTF-8 text, at least 100 characters, and explicitly approved for training. Do not commit private or restricted data. The generated checkpoint and metrics go under `artifacts/`; generated outputs should not be committed.
+The --steps value is the number of additional steps for that invocation. Model configuration and tokenizer must match the checkpoint. Never delete or overwrite the only copy of a valuable checkpoint.
 
-Available options:
+## Prepare Google Drive OAuth
 
-- `--steps`: optimizer steps.
-- `--batch-size`: examples per batch.
-- `--context-length`: tokens per training example.
-- `--d-model`, `--layers`, `--heads`: Transformer size.
-- `--learning-rate`, `--seed`: optimization and reproducibility.
-- `--device`: `cpu` or `cuda`.
+See docs/TRAINING.md for Google Cloud OAuth setup and GitHub Actions secrets. The local helper is:
+
+    python scripts/google_drive_auth.py --client-secrets path/to/client_secret.json
+
+Do not commit the client secrets JSON or refresh token.
+
+## Export a checkpoint to GGUF
+
+    python scripts/export_hf.py --checkpoint artifacts/pretraining/checkpoint.pt --output artifacts/hf-export
+    python llama.cpp/convert_hf_to_gguf.py artifacts/hf-export --outfile artifacts/pretraining/model.gguf --outtype f16
+
+The second command requires the pinned llama.cpp checkout and its converter dependencies. The GitHub smoke workflow performs this validation automatically.
 
 ## Repository structure
 
-- `ivritlm/`: model, tokenizer, configuration, training code.
-- `scripts/`: smoke and real-corpus training commands.
-- `tests/`: unit tests.
-- `configs/`: experiment examples.
-- `data/smoke/`: synthetic test-only text.
-- `docs/`: operational and architecture documentation.
+- ivritlm/: model, tokenizer, configuration, training code.
+- scripts/: smoke and real training, Drive storage/authentication, and GGUF export.
+- tests/: unit and incremental-training tests.
+- configs/: experiment examples.
+- data/smoke/: synthetic test-only text.
+- docs/: operational and architecture guides.
 
 ## Generated files
 
-Do not commit virtual environments, caches, raw corpora, checkpoints, logs, or temporary datasets. The GitHub pretraining workflow uploads checkpoints as short-lived Actions artifacts (14 days); download important outputs and preserve provenance metadata.
+Do not commit virtual environments, caches, raw corpora, checkpoints, logs, OAuth credentials, or temporary datasets. The Drive folder holds versioned model outputs; GitHub Actions artifacts are only a secondary 14-day copy.
 
 ## Contribution loop
 
-1. Read the relevant architecture and training documentation.
+1. Read architecture and training documentation.
 2. Make a focused change.
 3. Add tests.
-4. Run the test suite and smoke training.
-5. Update `CHANGELOG.md`, `ROADMAP.md`, and operational documentation when behavior changes.
+4. Run unit tests and smoke training.
+5. Update CHANGELOG.md, ROADMAP.md, and relevant documentation.
