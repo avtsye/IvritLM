@@ -1,75 +1,65 @@
 # Training and automation operations
 
-## What GitHub Actions is for
+## Implemented workflows
 
-GitHub Actions should orchestrate repeatable tasks:
+| Workflow | Trigger | Purpose | Output |
+|---|---|---|---|
+| `ci.yml` | push, pull request, manual | compile package, install pinned dependencies, run tests, validate dashboard | test result |
+| `smoke-train.yml` | model-code changes or manual | 12-step synthetic CPU training check | smoke checkpoint and metrics, 7-day artifact |
+| `pretrain.yml` | manual only | bounded training on an approved UTF-8 text file already in the repository | checkpoint, tokenizer metadata, metrics, 14-day artifact |
+| `train.yml` | manual from dashboard | inspect a public source and produce a provenance intake report | intake report only |
 
-- formatting, linting, type checks, and unit tests;
-- data-manifest validation and small data-quality checks;
-- tokenizer and model CPU smoke tests;
-- small, bounded experiments;
-- packaging metadata and publishing approved artifacts.
+The source-intake workflow and pretraining workflow are intentionally separate. Submitting a URL to the dashboard does not silently authorize or ingest its contents into the training corpus.
 
-A standard hosted runner is not assumed to have a GPU or enough memory/time for meaningful large-scale pretraining. Do not start an expensive training job until its hardware, runtime, storage, and cost are known.
+## Model implementation
 
-## Workflow design
+The package in `ivritlm/` currently includes:
 
-Planned workflows:
+- `config.py`: validated model and training settings.
+- `tokenizer.py`: deterministic UTF-8 byte tokenizer (IDs 0–255 for bytes, 256 BOS, 257 EOS).
+- `model.py`: randomly initialized decoder-only Transformer with causal self-attention.
+- `training.py`: next-token batches, AdamW updates, validation loss, checkpoint and metrics output.
 
-| Workflow | Trigger | Purpose |
-|---|---|---|
-| `ci.yml` | push and pull request | fast code checks and tests |
-| `data-check.yml` | pull request or manual | validate manifests and dataset metadata |
-| `smoke-train.yml` | manual or selected changes | tiny deterministic CPU training run |
-| `train.yml` | manual dispatch only initially | controlled training on explicitly configured compute |
-| `evaluate.yml` | after a checkpoint is produced | held-out evaluation and report |
+This is a baseline implementation. Byte tokenization is inefficient compared with a trained Hebrew subword tokenizer. There is no claim of useful language ability until a real approved corpus is trained and independently evaluated.
 
-The actual workflow files and their triggers are authoritative. This table describes the intended design, not workflows that already exist.
+## Run a synthetic smoke test locally
 
-## Safe workflow defaults
+```bash
+python -m pip install -r requirements-model.txt
+python -m pytest -q
+python scripts/smoke_train.py
+```
 
-- Use least-privilege workflow permissions.
-- Pin third-party Actions to reviewed commit SHAs.
-- Do not expose secrets to workflows triggered by untrusted pull requests.
-- Require explicit manual dispatch for compute-intensive training.
-- Validate configuration and data manifests before allocating compute.
-- Set bounded timeouts and save checkpoints periodically.
-- Never print tokens, credentials, or private dataset locations in logs.
-- Avoid uploading raw training data as public workflow artifacts.
+The smoke sample in `data/smoke/hebrew_sample.txt` is synthetic test text only. Never report its checkpoint as a Hebrew model release.
 
-## Checkpointing and resume
+## Run pretraining on a reviewed corpus
 
-A checkpoint must include model weights and the state needed for a faithful resume (optimizer, scheduler, step, random-number generator state, and config metadata). Save atomically where possible. On resume, verify compatibility with the model config, tokenizer, dataset version, and code revision. A weights-only export is not a resumable training checkpoint.
+The current GitHub-hosted workflow accepts only a `.txt` file already committed inside this repository. Because this repository is public, committing a corpus makes it public too. Do not place private, confidential, personal, gated, or otherwise restricted data here. Review source terms and permission before adding any text.
 
-GitHub-hosted job storage is temporary. Use a deliberate artifact strategy with retention settings, checksums, and access controls. Do not rely on a later job finding files left on a previous runner.
+1. Add the approved corpus at a repository path, for example `data/corpus/train.txt`.
+2. Open GitHub → Actions → **IvritLM - Pretraining** → Run workflow.
+3. Supply the repository-relative path, a step count from 1 to 1,000, and batch size from 1 to 16.
+4. The hosted CPU job trains from random initialization and uploads `checkpoint.pt`, `tokenizer.json`, and `metrics.json` as a 14-day artifact.
+5. Download the artifact from that run. Keep its config, corpus provenance, and metrics together.
 
-## GPU strategy
+A short CPU run is an engineering experiment, not meaningful pretraining. The default architecture is intentionally small (128 hidden dimensions, 4 layers, context 128) to keep the first workflow bounded. For larger runs, first configure a suitable GPU runner and external artifact storage; do not assume GitHub-hosted CPU is adequate.
 
-The training workflow must not assume that a standard GitHub-hosted runner includes a GPU. If a GPU runner or external compute provider is configured, document:
+## Checkpoints and limitations
 
-- hardware model and VRAM;
-- runner labels and trust boundary;
-- who pays for compute and storage;
-- how credentials are supplied;
-- network and data access;
-- maximum job duration;
-- artifact/checkpoint retention;
-- how to stop a runaway job.
+A checkpoint currently contains model weights, optimizer state, step, model/training settings, seed, corpus SHA-256, and logged losses. Atomic local writing is used before artifact upload. A dedicated resume implementation, scheduler state, random-generator-state restoration, source manifest, Git commit metadata, and durable artifact storage are not implemented yet. The Actions artifact expires after 14 days, so download and preserve any run you need.
 
-## Manual run procedure
+## Security and operations
 
-Once `train.yml` exists:
+- Workflows use read-only repository permissions unless a documented write action is required.
+- Only manual dispatch starts pretraining; no training runs automatically on pull requests.
+- The workflow validates that the corpus path resolves inside the checked-out repository and that step/batch values stay bounded.
+- Never put secrets in corpus files, workflow inputs, logs, or artifacts.
+- A standard hosted runner has no guaranteed GPU. Current pretraining explicitly uses CPU.
 
-1. Review the current training config and dataset manifest.
-2. Confirm the target runner and estimated resource requirements.
-3. Start the workflow with the intended config and run identifier.
-4. Monitor logs and resource usage.
-5. Confirm that checkpoints and metadata were uploaded.
-6. Run evaluation on the held-out split.
-7. Record the outcome in the experiment log and changelog.
+## Next engineering steps
 
-Do not describe a run as successful merely because the workflow exited with code zero; verify artifacts and evaluation outputs.
-
-## Current status
-
-Training workflows are planned. They are not considered available until their YAML files, validation, and documentation are committed.
+1. Create an approved corpus manifest with source URL, license/permission review, snapshot/version, checksum, language and split.
+2. Build a deterministic corpus cleaner and train/validation/test split process.
+3. Replace the byte tokenizer with a trained Hebrew subword tokenizer and preserve tokenizer/model compatibility metadata.
+4. Add checkpoint resume, learning-rate scheduling, evaluation, and generation CLI.
+5. Add a GPU runner and durable artifact store after hardware and cost are agreed.
