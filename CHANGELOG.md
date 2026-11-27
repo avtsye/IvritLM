@@ -9,6 +9,7 @@
 - Latest-model pointer manifest so the workflow can find the newest checkpoint on the next run.
 - GPT-2-compatible export bridge for the current byte-tokenized Transformer.
 - Manual incremental pretraining workflow that restores Drive state, trains additional steps, saves the checkpoint, converts to GGUF, and uploads the result.
+- Hebrew dashboard controls for dispatching incremental training with corpus path, additional steps, and batch size.
 - Tests for incremental checkpoint resume and HF export structure.
 
 ### Limitations
