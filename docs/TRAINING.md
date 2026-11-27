@@ -75,7 +75,7 @@ The root folder is **IvritLM Models**. Each package release gets its own subfold
         0.2.0/
           ...
 
-The latest.json file stays in the root folder and points to the newest checkpoint and GGUF file IDs, including the module version and version-folder ID. Files inside a version folder are step-numbered and are not overwritten by later runs. When the package version changes, the next training run creates/uses the new version folder. The model checkpoint itself is still resumed from the root latest.json pointer, subject to strict architecture/tokenizer compatibility checks.
+The latest.json file stays in the root folder and points to the newest checkpoint and GGUF file IDs. It keeps checkpoint_module_version/checkpoint_version_folder_id separate from model_module_version/model_version_folder_id, so a failed GGUF export cannot accidentally label an older model file as belonging to the new package version. Files inside a version folder are step-numbered and are not overwritten by later runs. When the package version changes, the next training run creates/uses the new version folder. The model checkpoint itself is resumed from the root latest.json pointer, subject to strict architecture/tokenizer compatibility checks.
 
 ### E. Verify the connection
 
