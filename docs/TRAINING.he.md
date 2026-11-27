@@ -28,7 +28,7 @@
 פתח PowerShell בתיקיית המאגר והריץ:
 
 ```powershell
-python -m pip install -r requirements-model.txt
+python -m pip install -r requirements-drive.txt
 python scripts/google_drive_auth.py
 ```
 
@@ -41,6 +41,8 @@ python scripts/google_drive_auth.py --client-secrets "C:\נתיב\client_secret.
 ```
 
 בסיום תקבל הודעה על הצלחה וארבעה ערכים. השאר את חלון PowerShell פתוח עד שתעתיק אותם ל-GitHub.
+
+**טיפול בתעודות HTTPS:** כלי החיבור משתמש אוטומטית במאגר תעודות האמון של Windows באמצעות `truststore`, תוך השארת אימות SSL פעיל. אם תוכנת סינון ארגונית/מקומית מתקינה תעודת CA במאגר האמון של Windows, היא תזוהה גם היא. אין לבטל אימות תעודות.
 
 ### ג. שמירת ארבעת הערכים ב-GitHub
 
@@ -108,6 +110,7 @@ python scripts/google_drive_auth.py --client-secrets "C:\נתיב\client_secret.
 |---|---|
 | `Client secrets must be for a web or installed app` | נבחר `token.json`. יש לבחור OAuth Client JSON מסוג Desktop app. |
 | `Google did not return a Refresh Token` | הרץ שוב את האשף ואשר גישה מחדש. |
+| `CERTIFICATE_VERIFY_FAILED` | ודא שתעודת CA של תוכנת הסינון מותקנת במאגר Trusted Root Certification Authorities של Windows, ועדכן את `requirements-drive.txt`. אין להשבית אימות SSL. |
 | `Missing Google Drive OAuth secrets` | בדוק שכל ארבעת GitHub Secrets קיימים ושמותיהם מדויקים. |
 | `DRIVE_FOLDER_ID` חסר | הוסף את מזהה התיקייה שהאשף הדפיס. |
 | ריצת אימון נכשלת על נתיב קורפוס | בדוק שהקובץ קיים ב-main, שהנתיב יחסי ושהסיומת היא TXT. |
