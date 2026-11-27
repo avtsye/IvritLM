@@ -19,8 +19,8 @@
 </section>
 <div class="grid">
 <section class="panel"><div class="head"><div><p class="eyebrow">01 / DATA SOURCE</p><h2>מקור נתונים חדש</h2></div><small>01</small></div>
-<form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או עמוד HTTPS ציבורי.</p>
-<label for="source-kind">סוג המקור</label><select id="source-kind"><option value="auto">זיהוי אוטומטי</option><option value="github">מאגר GitHub ציבורי</option><option value="web">עמוד אינטרנט</option></select>
+<form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או אתר HTTPS ציבורי. סריקת אתר מגלה כתובות מתוך sitemap.xml וקישורים פנימיים, עד 500 עמודים ובאותו מתחם בלבד; robots.txt מכובד.</p>
+<label for="source-kind">סוג המקור</label><select id="source-kind"><option value="auto">זיהוי אוטומטי</option><option value="github">מאגר GitHub ציבורי</option><option value="web">אתר שלם (מפת אתר וקישורים פנימיים)</option></select>
 <div class="check"><input id="license-ack" type="checkbox" required><label for="license-ack">בדקתי שיש לי הרשאה להשתמש בתוכן למטרת אימון, ושהוא אינו פרטי או חסוי.</label></div>
 <div class="check"><input id="public-ack" type="checkbox" required><label for="public-ack">המקור ציבורי ואינו דורש התחברות, עוגיות או מפתח גישה.</label></div>
 <button id="submit-btn" type="submit"><span>הפעלת בדיקת מקור</span><b>←</b></button><p id="form-message" role="status"></p></form></section>
