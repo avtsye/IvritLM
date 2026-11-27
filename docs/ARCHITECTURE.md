@@ -10,7 +10,7 @@ IvritLM is a Hebrew-first decoder-only Transformer trained with next-token predi
 2. ivritlm/tokenizer.py maps UTF-8 bytes to IDs 0–255 and reserves 256/257 for BOS/EOS. This is lossless for Hebrew Unicode but inefficient in sequence length; it is a temporary baseline.
 3. ivritlm/model.py implements token and position embeddings, pre-normalized causal self-attention blocks, GELU feed-forward layers, final normalization, and a tied language-model head.
 4. ivritlm/training.py samples shifted token windows, optimizes with AdamW, logs train/validation loss, and writes resumable checkpoints.
-5. scripts/drive_storage.py restores the latest checkpoint and writes versioned checkpoints and exports to a user-owned Drive folder.
+5. scripts/drive_storage.py restores the latest checkpoint and writes outputs under IvritLM Models/<ivritlm.__version__>/ in the user's Drive. The root-level latest.json points to the newest checkpoint and model files.
 6. scripts/export_hf.py maps the custom Transformer tensors into a GPT-2-compatible intermediate format for GGUF conversion.
 7. scripts/smoke_train.py runs a tiny deterministic software test on synthetic Hebrew text.
 
@@ -18,7 +18,7 @@ IvritLM is a Hebrew-first decoder-only Transformer trained with next-token predi
 
 A checkpoint includes model tensors, optimizer state, global step, model/training config, tokenizer version, corpus SHA-256 history, loss history, and RNG state. On resume, the implementation verifies model and tokenizer compatibility, restores the optimizer and random generators, and applies additional optimizer steps. It refuses an incompatible architecture rather than silently starting over.
 
-Drive storage is versioned. The workflow uploads a new checkpoint before attempting GGUF conversion, then updates the latest GGUF pointer only after conversion and upload succeed. A failed export therefore does not erase the most recent trained weights.
+Each Python package version has a separate Drive subfolder. Checkpoint, tokenizer, manifest, metrics, and GGUF files are step-numbered inside that folder. The root latest.json remains the cross-version pointer used by the next run. The workflow uploads a new checkpoint before attempting GGUF conversion, then updates the latest GGUF pointer only after conversion and upload succeed. A failed export therefore does not erase the most recent trained weights.
 
 ## GGUF export bridge
 
@@ -32,7 +32,7 @@ The first checkpoint is initialized randomly. No pretrained language-model check
 
 ## Scale and limitations
 
-The current hosted workflow uses a small CPU-oriented configuration: 128-dimensional hidden state, 4 layers, 4 attention heads, and 128-token context. It validates the training pipeline, not useful language ability. Realistic from-scratch training requires a much larger clean corpus and suitable GPU compute.
+The current model is a small CPU-oriented baseline. It validates the training pipeline, not useful language ability. Realistic from-scratch training requires a much larger clean corpus and suitable GPU compute.
 
 ## Reproducibility metadata
 
