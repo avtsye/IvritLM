@@ -1,0 +1,151 @@
+name: IvritLM - Hebrew chat fine-tuning and GGUF export
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_jsonl:
+        description: JSONL conversations; each line has a messages array with user/assistant roles
+        required: true
+        type: string
+      steps:
+        description: Additional fine-tuning steps
+        required: true
+        default: "100"
+        type: string
+      batch_size:
+        description: Batch size
+        required: true
+        default: "4"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ivritlm-chat-finetuning
+  cancel-in-progress: false
+
+jobs:
+  chat-tuning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: .
+    steps:
+      - name: Checkout IvritLM
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned llama.cpp converter
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: 15fcfc7357f8de73671d39e7d8c594e1beb3052d
+          path: llama.cpp
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install model and Drive dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-model.txt
+          python -m pip install --disable-pip-version-check -r requirements-drive.txt
+          python -m pip install --disable-pip-version-check "gguf>=0.1.0" "transformers==4.57.6" "sentencepiece>=0.1.98,<0.3.0" "protobuf>=4.21.0,<5.0.0"
+
+      - name: Validate input and save conversation dataset
+        env:
+          CHAT_JSONL: ${{ inputs.chat_jsonl }}
+          STEPS: ${{ inputs.steps }}
+          BATCH_SIZE: ${{ inputs.batch_size }}
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from scripts.train_chat import load_chat_jsonl
+          raw = os.environ.get("CHAT_JSONL", "")
+          if not raw or len(raw) > 60000:
+              raise SystemExit("Provide JSONL chat data (maximum 60,000 characters).")
+          steps, batch = int(os.environ["STEPS"]), int(os.environ["BATCH_SIZE"])
+          if not 1 <= steps <= 1000 or not 1 <= batch <= 16:
+              raise SystemExit("steps must be 1..1000 and batch_size must be 1..16.")
+          missing = [key for key in ("DRIVE_CLIENT_ID","DRIVE_CLIENT_SECRET","DRIVE_REFRESH_TOKEN","DRIVE_FOLDER_ID") if not os.environ.get(key)]
+          if missing:
+              raise SystemExit("Missing Google Drive secrets: " + ", ".join(missing))
+          path = Path("artifacts/chat/conversations.jsonl")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(raw, encoding="utf-8")
+          _, count = load_chat_jsonl(path)
+          print(f"Validated {count} conversations.")
+          PY
+
+      - name: Restore latest base checkpoint from Google Drive
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py download-checkpoint
+
+      - name: Require an existing pretraining checkpoint
+        run: |
+          test -s artifacts/pretraining/checkpoint.pt || {
+            echo "No pretraining checkpoint exists. Run regular Hebrew pretraining first."
+            exit 1
+          }
+
+      - name: Fine-tune on Hebrew conversations
+        run: |
+          python scripts/train_chat.py \
+            --input artifacts/chat/conversations.jsonl \
+            --resume artifacts/pretraining/checkpoint.pt \
+            --steps "${{ inputs.steps }}" \
+            --batch-size "${{ inputs.batch_size }}" \
+            --output artifacts/pretraining
+
+      - name: Persist fine-tuned checkpoint to Google Drive
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py upload-checkpoint
+
+      - name: Export checkpoint to Hugging Face format
+        run: python scripts/export_hf.py --checkpoint artifacts/pretraining/checkpoint.pt --output artifacts/hf-export
+
+      - name: Convert model to GGUF and validate
+        run: |
+          python llama.cpp/convert_hf_to_gguf.py artifacts/hf-export --outfile artifacts/pretraining/model.gguf --outtype f16
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("artifacts/pretraining/model.gguf")
+          if not p.is_file() or p.stat().st_size < 1024 or p.open("rb").read(4) != b"GGUF":
+              raise SystemExit("GGUF file validation failed.")
+          print(f"Validated GGUF: {p.stat().st_size} bytes")
+          PY
+
+      - name: Upload GGUF model and metrics to Google Drive
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py upload-model
+
+      - name: Keep run files as a secondary copy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ivritlm-chat-tuning-${{ github.run_id }}
+          path: |
+            artifacts/pretraining/checkpoint.pt
+            artifacts/pretraining/model.gguf
+            artifacts/pretraining/metrics.json
+            artifacts/chat/conversations.jsonl
+          if-no-files-found: warn
+          retention-days: 14
