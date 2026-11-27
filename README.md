@@ -1,68 +1,54 @@
 # IvritLM
 
-**IvritLM** is an experimental, open-source Hebrew language-model project. The long-term goal is to train a Hebrew-first autoregressive language model **from randomly initialized weights**, with a reproducible and documented training pipeline.
+**IvritLM** is an experimental, open-source Hebrew-first language model trained from randomly initialized weights.
 
-> **Project status: bootstrap / early development.** No trained model is published yet. The repository currently defines the project direction and engineering process; a working model must not be claimed until the smoke tests and training pipeline have passed.
+> **Status: early prototype.** The repository now contains a small decoder-only Transformer, a UTF-8 byte tokenizer baseline, a training loop, and a manual CPU pretraining workflow. No useful or production-ready model has been trained or published. The bundled Hebrew text is synthetic smoke-test material only.
 
-## At a glance
+## Current implementation
 
-- **Language:** Hebrew-first.
-- **Training approach:** from scratch; no pretrained model weights.
-- **Architecture direction:** decoder-only Transformer (GPT-style).
-- **Framework direction:** PyTorch.
-- **Tokenizer direction:** SentencePiece, trained on the project's approved corpus.
-- **Automation:** GitHub Actions for validation, data checks, and small CPU smoke tests. Full training requires suitable compute and is not assumed to fit on a standard hosted runner.
-- **Distribution goal:** versioned checkpoints and a documented local inference interface, subject to model and dataset licenses.
+- **Model:** PyTorch decoder-only Transformer with causal self-attention and tied token/output embeddings.
+- **Initialization:** random weights; no pretrained model is loaded.
+- **Tokenizer:** deterministic UTF-8 byte tokenizer (258 IDs, including BOS/EOS). It handles Hebrew reliably but is inefficient; a trained Hebrew subword tokenizer remains a next milestone.
+- **Training:** next-byte prediction, validation loss logging, and checkpoint plus metrics output.
+- **Tests:** tokenizer round-trip, model tensor/loss checks, and a CPU end-to-end smoke run.
+- **Compute:** GitHub-hosted CPU is suitable only for tiny experiments. Real pretraining needs a substantially larger approved corpus and suitable compute.
+
+## Where the model is stored
+
+The **model source code** lives in `ivritlm/` in this GitHub repository. The **trained weights** are created only when a training run completes and are saved as `artifacts/pretraining/checkpoint.pt` during the job. The workflow uploads them as a GitHub Actions artifact named `ivritlm-checkpoint-RUN_ID` (14-day retention). They are not part of the website and are not committed to Git. The current repository has no trained production checkpoint.
 
 ## Start here
 
-- Open the [training dashboard](https://avtsye.github.io/IvritLM/) to submit a public source and inspect Actions runs (after Pages is enabled). See [dashboard setup and limitations](docs/TRAINING_DASHBOARD.md).
+- [Training dashboard](https://avtsye.github.io/IvritLM/) — source intake and run history; it does not itself host model weights.
+- [Training operations](docs/TRAINING.md) — how to run smoke tests and actual pretraining.
+- [Development guide](docs/DEVELOPMENT.md) — local setup and commands.
+- [Architecture](docs/ARCHITECTURE.md) — model/tokenizer/training design.
+- [Data policy](docs/DATA_POLICY.md) — approval and provenance requirements.
+- [Roadmap](ROADMAP.md) — implemented and pending milestones.
+- [Changelog](CHANGELOG.md) — repository changes.
 
-| If you want to… | Read |
-|---|---|
-| Understand the project and its status | This README |
-| Set up a development environment | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
-| Understand the planned architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Understand data requirements and provenance | [docs/DATA_POLICY.md](docs/DATA_POLICY.md) |
-| Run or maintain automation | [docs/TRAINING.md](docs/TRAINING.md) |
-| Understand tests and quality gates | [docs/TESTING.md](docs/TESTING.md) |
-| Track decisions and changes | [CHANGELOG.md](CHANGELOG.md) and [docs/DECISIONS.md](docs/DECISIONS.md) |
-| See the planned milestones | [ROADMAP.md](ROADMAP.md) |
-| Report a bug or propose an improvement | [CONTRIBUTING.md](CONTRIBUTING.md) |
+## Start a small real-corpus run
 
-## Project principles
+1. Prepare a UTF-8 `.txt` corpus that you are authorized to use for model training.
+2. Keep private or restricted data out of this public repository. The current hosted workflow reads a corpus file committed in the repository, so that file becomes public.
+3. Open Actions → **IvritLM - Pretraining** → Run workflow.
+4. Enter the repository-relative corpus path, such as `data/corpus/train.txt`, and choose a bounded step count.
+5. Download the resulting checkpoint artifact and metrics from the completed run.
 
-1. **From-scratch means from-scratch:** initialize model weights randomly. Pretrained weights are not an allowed shortcut for the base model.
-2. **Data provenance matters:** every dataset source must have a documented origin, license/permission basis, processing procedure, and exclusion policy.
-3. **Reproducibility:** record configuration, tokenizer version, dataset manifest/hash, code revision, random seed, and training environment for every run.
-4. **Honest evaluation:** report held-out loss/perplexity and qualitative limitations. Do not describe fluent-looking samples as proof of understanding.
-5. **Small verified steps:** CPU tests validate code paths; they do not establish that a model is useful or that large-scale training is feasible.
-6. **Documentation is part of the product:** every meaningful behavior, configuration, workflow, and operational change must be documented.
-
-## Training dashboard
-
-The [IvritLM training dashboard](https://avtsye.github.io/IvritLM/) is intended to submit public data sources to GitHub Actions and show recent runs. Before it is available, enable GitHub Pages in Settings → Pages → Source → GitHub Actions. The dashboard currently performs source intake validation only; it does not yet train model weights. See [dashboard operations](docs/TRAINING_DASHBOARD.md).
+Do not use `data/smoke/hebrew_sample.txt` as a real training corpus. It exists solely to test that the software executes.
 
 ## Repository map
 
-The repository is being built incrementally. Planned areas:
+- `.github/workflows/` — CI, source intake, smoke training, and manual pretraining.
+- `configs/` — experiment configuration examples.
+- `data/smoke/` — synthetic test text only; not training data.
+- `docs/` — architecture, data policy, operations, and maintenance guides.
+- `ivritlm/` — tokenizer, Transformer, configuration, and training loop.
+- `scripts/` — smoke-test and real-training entry points.
+- `tests/` — automated tests.
 
-- `.github/workflows/` — automated validation and training workflows.
-- `configs/` — version-controlled experiment configurations.
-- `data/` — dataset manifests and local/generated artifacts; large or restricted corpora should not be committed.
-- `docs/` — operator, architecture, data, and maintenance documentation.
-- `ivritlm/` — Python package containing tokenizer, model, training, and inference code.
-- `tests/` — unit and integration tests.
-- `scripts/` — explicit developer and maintainer commands.
+## Limitations and next milestones
 
-The actual tree is authoritative: planned components are not considered implemented until their code and tests exist.
+The current baseline uses bytes rather than subword tokens, has no corpus curation/manifest pipeline, no scheduler or resume command, and no large-scale GPU orchestration. A successful smoke test proves code execution, not Hebrew language ability. Dataset permissions, privacy, train/validation separation, and compute budget must be reviewed before meaningful pretraining.
 
-## Safety, licensing, and limitations
-
-Only use data that the project is legally permitted to process and redistribute (or whose use is otherwise clearly authorized). Do not upload private, personal, confidential, or access-controlled material. Keep dataset manifests and attribution records with the project. See [the data policy](docs/DATA_POLICY.md).
-
-Training from scratch is compute- and data-intensive. GitHub Actions is useful for CI, reproducibility checks, tokenizer/model smoke tests, and small experiments. It is not a promise of free or sufficient GPU compute. See [training operations](docs/TRAINING.md).
-
-## License
-
-The repository's code license will be declared in a dedicated `LICENSE` file. Dataset and model artifacts may have separate terms; a code license does not automatically license training data or resulting weights.
+Training from scratch is data- and compute-intensive. GitHub Actions is used for repeatable tests and bounded CPU experiments, not promised free GPU training. Code, dataset, and checkpoint licenses are separate questions.
