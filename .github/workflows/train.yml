@@ -1,0 +1,70 @@
+name: IvritLM - Source intake
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: Public HTTPS URL (GitHub repository or web page)
+        required: true
+        type: string
+      source_kind:
+        description: Source type
+        required: true
+        type: choice
+        options:
+          - github
+          - web
+      license_ack:
+        description: Confirm authorization to use this source for model training
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ivritlm-source-intake
+  cancel-in-progress: false
+
+jobs:
+  intake:
+    name: Validate and inspect source
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out IvritLM
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install intake dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Validate authorization acknowledgement
+        env:
+          LICENSE_ACK: ${{ inputs.license_ack }}
+        run: |
+          if [ "$LICENSE_ACK" != "yes" ]; then
+            echo "::error::The source authorization acknowledgement is required."
+            exit 1
+          fi
+      - name: Inspect source and create intake report
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
+          SOURCE_KIND: ${{ inputs.source_kind }}
+        run: python scripts/inspect_source.py
+      - name: Upload source intake report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ivritlm-source-intake-${{ github.run_id }}
+          path: artifacts/source-intake/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Report current training capability
+        run: |
+          echo "Source validation completed."
+          echo "The from-scratch model training engine is not implemented yet."
+          echo "This run is source intake validation, not model training."
