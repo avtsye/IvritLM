@@ -1,9 +1,4 @@
-"""Google Drive checkpoint storage for incremental training.
-
-Authentication is supplied through GitHub Actions secrets, never committed.
-The Drive folder stores immutable, versioned checkpoint/model files and a latest.json
-pointer that is updated only after each upload succeeds.
-"""
+"""Durable, versioned Google Drive storage for IvritLM training outputs."""
 import argparse
 import json
 import os
@@ -15,6 +10,7 @@ from google.oauth2.credentials import Credentials
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
+CHUNK_SIZE = 8 * 1024 * 1024
 
 
 def drive_session():
@@ -22,7 +18,7 @@ def drive_session():
     missing = [name for name in required if not os.environ.get(name)]
     if missing:
         raise RuntimeError("Missing Google Drive OAuth secrets: " + ", ".join(missing))
-    creds = Credentials(
+    credentials = Credentials(
         token=None,
         refresh_token=os.environ["DRIVE_REFRESH_TOKEN"],
         token_uri="https://oauth2.googleapis.com/token",
@@ -30,7 +26,7 @@ def drive_session():
         client_secret=os.environ["DRIVE_CLIENT_SECRET"],
         scopes=SCOPES,
     )
-    return AuthorizedSession(creds)
+    return AuthorizedSession(credentials)
 
 
 def folder_id():
@@ -52,35 +48,65 @@ def list_named(session, name):
 
 
 def download_file(session, file_id, destination):
-    response = session.get(f"{API}/files/{file_id}", params={"alt": "media"})
+    response = session.get(f"{API}/files/{file_id}", params={"alt": "media"}, stream=True)
     response.raise_for_status()
-    Path(destination).parent.mkdir(parents=True, exist_ok=True)
-    Path(destination).write_bytes(response.content)
+    target = Path(destination)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix(target.suffix + ".download")
+    with temporary.open("wb") as stream:
+        for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+            if chunk:
+                stream.write(chunk)
+    temporary.replace(target)
 
 
 def upload_file(session, local_path, remote_name, existing_id=None):
     path = Path(local_path)
     if not path.is_file():
         raise FileNotFoundError(path)
-    boundary = "ivritlm-upload-boundary"
+    size = path.stat().st_size
     metadata = {"name": remote_name, "mimeType": "application/octet-stream"}
     if not existing_id:
         metadata["parents"] = [folder_id()]
-    body = (
-        f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
-        + json.dumps(metadata)
-        + f"\r\n--{boundary}\r\nContent-Type: application/octet-stream\r\n\r\n"
-    ).encode("utf-8") + path.read_bytes() + f"\r\n--{boundary}--".encode("ascii")
     if existing_id:
-        url = f"{UPLOAD_API}/{existing_id}"
-        method = session.patch
+        start_url = f"{UPLOAD_API}/{existing_id}"
+        start_method = session.patch
     else:
-        url = UPLOAD_API
-        method = session.post
-    response = method(url, params={"uploadType": "multipart", "fields": "id,name,modifiedTime"},
-                      data=body, headers={"Content-Type": f"multipart/related; boundary={boundary}"})
-    response.raise_for_status()
-    return response.json()
+        start_url = UPLOAD_API
+        start_method = session.post
+    start = start_method(
+        start_url,
+        params={"uploadType": "resumable", "fields": "id,name,modifiedTime"},
+        json=metadata,
+        headers={"X-Upload-Content-Type": "application/octet-stream",
+                 "X-Upload-Content-Length": str(size)},
+    )
+    start.raise_for_status()
+    upload_url = start.headers.get("Location")
+    if not upload_url:
+        raise RuntimeError("Google Drive did not return a resumable-upload URL.")
+    if size == 0:
+        response = session.put(upload_url, data=b"", headers={"Content-Length": "0", "Content-Range": "bytes */0"})
+        response.raise_for_status()
+        return response.json()
+    offset = 0
+    with path.open("rb") as stream:
+        while offset < size:
+            chunk = stream.read(CHUNK_SIZE)
+            end = offset + len(chunk) - 1
+            response = session.put(
+                upload_url,
+                data=chunk,
+                headers={"Content-Length": str(len(chunk)),
+                         "Content-Range": f"bytes {offset}-{end}/{size}"},
+            )
+            if response.status_code in (200, 201):
+                return response.json()
+            if response.status_code != 308:
+                response.raise_for_status()
+                raise RuntimeError(f"Unexpected Drive resumable upload status: {response.status_code}")
+            offset = end + 1
+    raise RuntimeError("Drive upload ended without a completion response.")
 
 
 def load_latest(session):
@@ -92,17 +118,17 @@ def load_latest(session):
     return response.json()
 
 
+def write_temp_json(value):
+    path = Path("artifacts/drive-latest.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    return path
+
+
 def save_latest(session, manifest):
     matches = list_named(session, "latest.json")
     upload_file(session, write_temp_json(manifest), "latest.json",
                 matches[0]["id"] if matches else None)
-
-
-def write_temp_json(value):
-    path = Path("artifacts/drive-latest.json")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return path
 
 
 def download_checkpoint():
@@ -120,7 +146,8 @@ def download_checkpoint():
 
 def upload_checkpoint():
     session = drive_session()
-    checkpoint = Path("artifacts/pretraining/checkpoint.pt")
+    output = Path("artifacts/pretraining")
+    checkpoint = output / "checkpoint.pt"
     import torch
     state = torch.load(checkpoint, map_location="cpu", weights_only=False)
     step = int(state["global_step"])
@@ -128,27 +155,31 @@ def upload_checkpoint():
     uploaded = upload_file(session, checkpoint, name)
     latest = load_latest(session)
     latest.update({"checkpoint_file_id": uploaded["id"], "checkpoint_name": name,
-                   "global_step": step, "updated_by": "IvritLM GitHub Actions"})
+                   "checkpoint_global_step": step, "updated_by": "IvritLM GitHub Actions"})
+    for filename, prefix in [("tokenizer.json", "tokenizer"), ("run-manifest.json", "manifest")]:
+        source = output / filename
+        if source.is_file():
+            item = upload_file(session, source, f"{prefix}-step-{step:012d}.json")
+            latest[f"{prefix}_file_id"] = item["id"]
+            latest[f"{prefix}_name"] = item["name"]
     save_latest(session, latest)
-    print(f"Uploaded durable checkpoint: {name}")
+    print(f"Uploaded durable checkpoint and tokenizer metadata: {name}")
 
 
 def upload_model():
     session = drive_session()
-    model_path = Path("artifacts/pretraining/model.gguf")
-    metrics_path = Path("artifacts/pretraining/metrics.json")
+    output = Path("artifacts/pretraining")
+    model_path = output / "model.gguf"
+    metrics_path = output / "metrics.json"
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
     step = int(metrics["global_step"])
     name = f"ivritlm-step-{step:012d}.gguf"
     uploaded = upload_file(session, model_path, name)
+    upload_file(session, metrics_path, f"metrics-step-{step:012d}.json")
     latest = load_latest(session)
     latest.update({"model_file_id": uploaded["id"], "model_name": name,
-                   "global_step": step})
+                   "model_global_step": step})
     save_latest(session, latest)
-    upload_file(session, metrics_path, f"metrics-step-{step:012d}.json")
-    manifest = Path("artifacts/pretraining/run-manifest.json")
-    if manifest.exists():
-        upload_file(session, manifest, f"manifest-step-{step:012d}.json")
     print(f"Uploaded GGUF model: {name}")
 
 
