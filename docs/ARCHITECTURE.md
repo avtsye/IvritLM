@@ -18,7 +18,7 @@ IvritLM is a Hebrew-first decoder-only Transformer trained with next-token predi
 
 A checkpoint includes model tensors, optimizer state, global step, model/training config, tokenizer version, corpus SHA-256 history, loss history, and RNG state. On resume, the implementation verifies model and tokenizer compatibility, restores the optimizer and random generators, and applies additional optimizer steps. It refuses an incompatible architecture rather than silently starting over.
 
-Each Python package version has a separate Drive subfolder. Checkpoint, tokenizer, manifest, metrics, and GGUF files are step-numbered inside that folder. The root latest.json remains the cross-version pointer used by the next run. The workflow uploads a new checkpoint before attempting GGUF conversion, then updates the latest GGUF pointer only after conversion and upload succeed. A failed export therefore does not erase the most recent trained weights.
+Each Python package version has a separate Drive subfolder. Checkpoint, tokenizer, manifest, metrics, and GGUF files are step-numbered inside that folder. The root latest.json remains the cross-version pointer used by the next run. It stores checkpoint and GGUF version-folder metadata separately, so a failed export cannot associate an older GGUF with a newer checkpoint version. The workflow uploads a new checkpoint before attempting GGUF conversion, then updates the latest GGUF pointer only after conversion and upload succeed. A failed export therefore does not erase the most recent trained weights.
 
 ## GGUF export bridge
 
