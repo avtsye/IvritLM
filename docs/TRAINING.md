@@ -48,7 +48,7 @@ Replace the path with the actual location of the downloaded JSON. A Google sign-
 - DRIVE_REFRESH_TOKEN
 - DRIVE_FOLDER_ID
 
-The helper uses the narrow drive.file scope. It does not request broad read/write access to every file in Drive. It can manage files created by this IvritLM integration.
+The helper uses the narrow drive.file scope. It does not request broad read/write access to every file in Drive. It can manage files created by this IvritLM integration. The Drive scripts initialize `truststore` before networking, using the Windows/system certificate store while keeping TLS certificate verification enabled. If a filtering proxy is used, its trusted CA certificate must be installed in the operating system trust store; do not disable SSL verification.
 
 ### C. Add the four values to GitHub
 
