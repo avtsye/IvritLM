@@ -9,7 +9,7 @@
 | pretrain.yml | manual or dashboard | restore Drive checkpoint, add training steps, export GGUF | versioned Drive files plus 14-day Actions artifact |
 | train.yml | manual from dashboard | inspect a public source and produce a provenance report | intake report only |
 
-The source-intake workflow and pretraining workflow are separate. The dashboard can dispatch either workflow: source inspection or incremental training.
+The source-intake workflow and pretraining workflow are separate. The dashboard can dispatch either workflow: source inspection or incremental training. Source inspection does **not** yet ingest source text into the training corpus.
 
 ## Incremental training
 
@@ -23,35 +23,77 @@ When --resume points to a prior checkpoint, training restores model weights, opt
 
 Each run writes checkpoint.pt (model tensors, optimizer state, config, step, corpus hashes, loss history, RNG state), tokenizer.json, metrics.json, and run-manifest.json.
 
-## One-time Google Drive setup
+## Connect IvritLM to your Google Drive (one time)
 
-The workflow uses the owner's OAuth refresh token and the least-privilege drive.file scope. The setup helper creates or finds an IvritLM Models folder in the owner's Drive; files are stored in that account's Drive quota.
+The connection is made by Google OAuth on your own computer. The browser page never receives Google credentials. GitHub Actions receives them only as encrypted repository secrets.
 
-1. In Google Cloud Console, create/select a project and enable the Google Drive API.
-2. Configure the OAuth consent screen and add the Google account that will authorize Drive. For long-term unattended training, set the app publishing status to In production; refresh tokens issued while an external OAuth app is in Testing mode expire after 7 days, so they would need to be renewed weekly. If you keep Testing mode, add the authorizing account as a test user and expect to repeat authorization when the token expires.
-3. Create an OAuth client of type Desktop app and download its client-secrets JSON.
-4. In a local clone, install requirements-model.txt and run:
-   python scripts/google_drive_auth.py --client-secrets path/to/client_secret.json
-5. Complete Google's authorization in the browser. The helper creates or finds the IvritLM Models folder and prints its folder ID, client ID, client secret, and refresh token.
-6. In GitHub → repository Settings → Secrets and variables → Actions, create these repository secrets:
-   - DRIVE_CLIENT_ID
-   - DRIVE_CLIENT_SECRET
-   - DRIVE_REFRESH_TOKEN
-   - DRIVE_FOLDER_ID (the ID printed by the helper)
+### A. Create Google OAuth credentials
 
-The OAuth grant is limited to files created or opened by this IvritLM integration; it does not receive broad access to the rest of Drive. Treat the client secret and refresh token as passwords. Never commit the OAuth JSON, refresh token, checkpoint, or private corpus. Do not paste credentials into chat or workflow logs. If a credential is exposed, revoke it in Google Cloud and create a new one.
+1. Open Google Cloud Console and create a project (or select an existing project).
+2. In APIs & Services → Library, enable **Google Drive API** for that project.
+3. Configure the OAuth consent screen. Add the Google account that owns the Drive folder as a test user if the app is still in Testing.
+4. For unattended use beyond the initial test period, set the OAuth app to **In production**. Google refresh tokens for an external app left in Testing normally expire after 7 days. Publishing may require completing Google's verification requirements depending on the app and scopes.
+5. In APIs & Services → Credentials, create an **OAuth client ID** with application type **Desktop app**, then download its JSON file. Keep this file private.
+
+### B. Authorize from your computer
+
+In a local clone of this repository, open a terminal in the repository folder and run:
+
+    python -m pip install -r requirements-model.txt
+    python scripts/google_drive_auth.py --client-secrets path/to/client_secret.json
+
+Replace the path with the actual location of the downloaded JSON. A Google sign-in/consent page opens. Sign in to the Drive-owning account and approve the requested Drive file access. The script creates or finds the root folder **IvritLM Models** and prints four values:
+- DRIVE_CLIENT_ID
+- DRIVE_CLIENT_SECRET
+- DRIVE_REFRESH_TOKEN
+- DRIVE_FOLDER_ID
+
+The helper uses the narrow drive.file scope. It does not request broad read/write access to every file in Drive. It can manage files created by this IvritLM integration.
+
+### C. Add the four values to GitHub
+
+1. Open https://github.com/avtsye/IvritLM/settings/secrets/actions.
+2. Choose **New repository secret** for each of the four names above.
+3. Paste the corresponding value printed by the local helper into the matching secret. Do not add quotation marks or spaces around it.
+4. Save each secret. GitHub masks secrets in workflow logs; do not print them or put them in source files.
+
+Do not paste credentials into ChatGPT, issues, commits, or workflow inputs. Never commit the OAuth JSON or refresh token. If a credential is exposed, revoke it in Google Cloud and repeat authorization.
+
+### D. What the Drive layout looks like
+
+The root folder is **IvritLM Models**. Each package release gets its own subfolder named exactly after ivritlm.__version__. The current package version is 0.1.0:
+
+    My Drive/
+      IvritLM Models/
+        latest.json
+        0.1.0/
+          checkpoint-step-000000000100.pt
+          tokenizer-step-000000000100.json
+          manifest-step-000000000100.json
+          metrics-step-000000000100.json
+          ivritlm-step-000000000100.gguf
+        0.2.0/
+          ...
+
+The latest.json file stays in the root folder and points to the newest checkpoint and GGUF file IDs, including the module version and version-folder ID. Files inside a version folder are step-numbered and are not overwritten by later runs. When the package version changes, the next training run creates/uses the new version folder. The model checkpoint itself is still resumed from the root latest.json pointer, subject to strict architecture/tokenizer compatibility checks.
+
+### E. Verify the connection
+
+After adding all four secrets, open GitHub → Actions → **IvritLM - Incremental Pretraining and GGUF Export** → Run workflow. Select an approved repository-relative UTF-8 .txt corpus and a small step count for the first test. The workflow's validation step checks that all four secrets exist before it attempts to contact Drive.
+
+A successful run should show the checkpoint and GGUF upload steps as completed. You can also open Google Drive → IvritLM Models and confirm the version subfolder and files. The static dashboard cannot inspect or display the secret values or directly verify Drive connectivity; the workflow run is the authoritative check.
 
 ## What is stored in Drive
 
-Every successful training run creates versioned files in the selected folder:
+For each training step count, the version subfolder stores:
 - checkpoint-step-000000000100.pt: full trainable weights plus optimizer/RNG state.
 - tokenizer-step-000000000100.json: tokenizer metadata.
 - manifest-step-000000000100.json: run configuration and corpus hashes.
 - metrics-step-000000000100.json: training metrics.
 - ivritlm-step-000000000100.gguf: inference-oriented GGUF export.
-- latest.json: pointer to the latest checkpoint and GGUF file IDs.
+- Root-level latest.json: pointer to the latest checkpoint and GGUF file IDs.
 
-The step number is illustrative. Files are versioned, not overwritten. Drive storage use grows with each run; old versions can be archived or cleaned up after a retention policy is chosen. The checkpoint is uploaded before GGUF conversion, so a conversion failure does not discard newly trained weights. The latest GGUF pointer updates only after export upload succeeds.
+The step number is illustrative. Drive storage use grows with each run; old versions can be archived or cleaned up after a retention policy is chosen. The checkpoint is uploaded before GGUF conversion, so a conversion failure does not discard newly trained weights. The latest GGUF pointer updates only after export upload succeeds.
 
 ## Local smoke test
 
@@ -65,15 +107,15 @@ The text in data/smoke/hebrew_sample.txt is synthetic test material only, not a 
 
 The hosted workflow accepts only a .txt corpus committed inside this public repository. That file becomes public. Do not put private, confidential, personal, gated, or restricted data here. Review source terms and permission before adding text.
 
-1. Complete the one-time Drive setup.
+1. Complete the one-time Drive setup above.
 2. Add an approved UTF-8 corpus, for example data/corpus/train.txt.
 3. Open the training dashboard, enter your GitHub token, and use the incremental-training section; alternatively open GitHub → Actions → IvritLM - Incremental Pretraining and GGUF Export → Run workflow.
 4. Supply the repository-relative corpus path, 1–1,000 additional steps, and batch size 1–16.
-5. The workflow downloads the latest Drive checkpoint (or starts from random weights if the folder has no checkpoint), performs additional updates, and uploads a new checkpoint version.
-6. It exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to Drive.
+5. The workflow downloads the latest Drive checkpoint (or starts from random weights if the folder has no checkpoint), performs additional updates, and uploads a new checkpoint version into the current module-version folder.
+6. It exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to the same version folder.
 7. GitHub Actions also stores a secondary 14-day copy.
 
-A short CPU run is an engineering experiment, not meaningful pretraining. The default architecture is small (128 hidden dimensions, 4 layers, context 128). The hosted workflow explicitly uses CPU; it does not promise free GPU training.
+A short CPU run is an engineering experiment, not meaningful pretraining. The hosted workflow explicitly uses CPU; it does not promise free GPU training.
 
 ## GGUF conversion status
 
