@@ -46,7 +46,7 @@ jobs:
       - name: Install intake and Drive dependencies
         run: |
           python -m pip install --disable-pip-version-check -r requirements-intake.txt
-          python -m pip install --disable-pip-version-check -r requirements-model.txt
+          python -m pip install --disable-pip-version-check -r requirements-drive.txt
 
       - name: Validate authorization and Drive configuration
         env:
