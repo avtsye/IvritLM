@@ -1,15 +1,13 @@
 # Development guide
 
-This guide describes the intended local workflow. Commands will be updated when the corresponding package files land.
-
 ## Requirements
 
 - Git.
-- Python 3.11 or newer (the exact supported version will be pinned in `pyproject.toml`).
-- A virtual environment.
-- CPU is sufficient for linting, unit tests, and tiny smoke tests. A GPU is optional for local experiments.
+- Python 3.11.
+- Virtual environment.
+- CPU for tests and tiny smoke training; a GPU is needed for serious experiments.
 
-## Initial checkout
+## Setup
 
 ```bash
 git clone https://github.com/avtsye/IvritLM.git
@@ -22,26 +20,48 @@ Activate the environment:
 - Windows PowerShell: `.venv\\Scripts\\Activate.ps1`
 - Linux/macOS: `source .venv/bin/activate`
 
-When dependency metadata is added, install using the repository's pinned development requirements. Do not install arbitrary latest versions and then report the environment as reproducible.
+Install pinned dependencies and run the test suite:
 
-## Expected developer loop
+```bash
+python -m pip install -r requirements-intake.txt -r requirements-model.txt
+python -m pytest -q
+python scripts/smoke_train.py
+```
 
-1. Read this guide and the relevant document under `docs/`.
-2. Create a focused branch for a change.
-3. Make the smallest coherent implementation.
-4. Add or update tests.
-5. Run formatting, static checks, and tests using the commands documented by the project.
-6. Update `CHANGELOG.md` and any affected operational documentation.
-7. Open a pull request describing behavior changes, validation, and any migration steps.
+## Run a training experiment
 
-## Configuration
+```bash
+python scripts/train.py --corpus data/corpus/train.txt --steps 100 --batch-size 4 --output artifacts/pretraining
+```
 
-Experiment settings belong in version-controlled YAML files under `configs/`. Avoid hard-coded training parameters. Record the exact config used for each run.
+The corpus must be UTF-8 text, at least 100 characters, and explicitly approved for training. Do not commit private or restricted data. The generated checkpoint and metrics go under `artifacts/`; generated outputs should not be committed.
+
+Available options:
+
+- `--steps`: optimizer steps.
+- `--batch-size`: examples per batch.
+- `--context-length`: tokens per training example.
+- `--d-model`, `--layers`, `--heads`: Transformer size.
+- `--learning-rate`, `--seed`: optimization and reproducibility.
+- `--device`: `cpu` or `cuda`.
+
+## Repository structure
+
+- `ivritlm/`: model, tokenizer, configuration, training code.
+- `scripts/`: smoke and real-corpus training commands.
+- `tests/`: unit tests.
+- `configs/`: experiment examples.
+- `data/smoke/`: synthetic test-only text.
+- `docs/`: operational and architecture documentation.
 
 ## Generated files
 
-Do not commit virtual environments, caches, raw corpora, checkpoints, logs, or temporary datasets. Large artifacts should be stored in an explicitly configured artifact store or release, with checksums and provenance metadata.
+Do not commit virtual environments, caches, raw corpora, checkpoints, logs, or temporary datasets. The GitHub pretraining workflow uploads checkpoints as short-lived Actions artifacts (14 days); download important outputs and preserve provenance metadata.
 
-## Current status
+## Contribution loop
 
-The repository is in bootstrap stage. If a command or component described as planned is not present in the tree, do not assume it is implemented. Check the README and ROADMAP before using it.
+1. Read the relevant architecture and training documentation.
+2. Make a focused change.
+3. Add tests.
+4. Run the test suite and smoke training.
+5. Update `CHANGELOG.md`, `ROADMAP.md`, and operational documentation when behavior changes.
