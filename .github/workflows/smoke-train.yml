@@ -1,0 +1,36 @@
+name: IvritLM - CPU training smoke test
+
+on:
+  push:
+    paths:
+      - "ivritlm/**"
+      - "tests/**"
+      - "scripts/smoke_train.py"
+      - ".github/workflows/smoke-train.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install model test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-model.txt
+      - name: Run model unit tests
+        run: python -m pytest -q
+      - name: Run end-to-end CPU smoke training
+        run: python scripts/smoke_train.py
+      - name: Upload smoke checkpoint and metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: ivritlm-smoke-checkpoint-${{ github.run_id }}
+          path: artifacts/smoke/
+          if-no-files-found: error
+          retention-days: 7
