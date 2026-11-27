@@ -4,6 +4,11 @@ import json
 import sys
 from pathlib import Path
 
+# Use the operating system trust store (including enterprise/filtering CA roots)
+# while keeping TLS certificate verification enabled.
+import truststore
+truststore.inject_into_ssl()
+
 from google.auth.transport.requests import AuthorizedSession
 from google_auth_oauthlib.flow import InstalledAppFlow
 
