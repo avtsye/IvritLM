@@ -28,7 +28,7 @@ Each run writes checkpoint.pt (model tensors, optimizer state, config, step, cor
 The workflow uses the owner's OAuth refresh token and the least-privilege drive.file scope. The setup helper creates or finds an IvritLM Models folder in the owner's Drive; files are stored in that account's Drive quota.
 
 1. In Google Cloud Console, create/select a project and enable the Google Drive API.
-2. Configure the OAuth consent screen. If the app is in Testing mode, add the Google account that owns the Drive folder as a test user.
+2. Configure the OAuth consent screen and add the Google account that will authorize Drive. For long-term unattended training, set the app publishing status to In production; refresh tokens issued while an external OAuth app is in Testing mode expire after 7 days, so they would need to be renewed weekly. If you keep Testing mode, add the authorizing account as a test user and expect to repeat authorization when the token expires.
 3. Create an OAuth client of type Desktop app and download its client-secrets JSON.
 4. In a local clone, install requirements-model.txt and run:
    python scripts/google_drive_auth.py --client-secrets path/to/client_secret.json
