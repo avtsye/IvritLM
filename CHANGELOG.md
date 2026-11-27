@@ -3,22 +3,25 @@
 ## Unreleased
 
 ### Added
-- Initial PyTorch decoder-only Transformer (`ivritlm/model.py`) with causal attention, random initialization, and autoregressive generation.
-- UTF-8 byte tokenizer baseline with dedicated BOS/EOS IDs and Hebrew round-trip support.
-- Config validation, next-token training loop, validation-loss logging, atomic checkpoint write, and metrics JSON.
-- CPU smoke-training script and Actions workflow that uploads a test checkpoint.
-- Manual bounded CPU pretraining workflow for a reviewed UTF-8 text corpus stored in the repository.
-- Model unit tests and CI dependency installation/test execution.
-- Documentation of model source location, checkpoint artifact storage, and current limitations.
+- Incremental training that restores model weights, optimizer state, global step, and random-generator state from the prior checkpoint.
+- Corpus SHA-256 history and per-run metrics/manifests.
+- Google Drive OAuth helper and resumable, versioned uploads for checkpoints, tokenizer metadata, metrics, manifests, and GGUF files.
+- Latest-model pointer manifest so the workflow can find the newest checkpoint on the next run.
+- GPT-2-compatible export bridge for the current byte-tokenized Transformer.
+- Manual incremental pretraining workflow that restores Drive state, trains additional steps, saves the checkpoint, converts to GGUF, and uploads the result.
+- Tests for incremental checkpoint resume and HF export structure.
 
 ### Limitations
+- Drive OAuth secrets and folder ID must be configured by the repository owner before the incremental workflow can run.
+- GGUF conversion/runtime compatibility still needs to pass an end-to-end smoke workflow.
 - The byte tokenizer is a simple baseline, not the intended efficient Hebrew subword tokenizer.
 - The bundled sample corpus is synthetic and must not be treated as real training data.
-- Pretraining workflow is CPU-only and limited to 1,000 steps; it is not suitable for large-scale training.
-- No scheduler, resume command, approved corpus manifest, or published production checkpoint exists yet.
-- Source intake dashboard remains separate from the actual pretraining workflow.
+- Hosted pretraining remains CPU-only and bounded; it is not suitable for large-scale pretraining.
+- The current source-intake dashboard remains separate from the incremental pretraining workflow.
+- No scheduler, corpus curation pipeline, efficient tokenizer, GPU orchestration, or published production checkpoint exists yet.
 
 ### Previously added
+- Initial PyTorch decoder-only Transformer, UTF-8 byte tokenizer, and next-token training loop.
 - RTL web dashboard and public-source intake validation workflow.
 - Bounded source inspection and JSON provenance report artifact.
 - Documentation for GitHub Pages activation and dashboard token handling.
