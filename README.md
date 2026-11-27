@@ -39,6 +39,10 @@
 5. **Small verified steps:** CPU tests validate code paths; they do not establish that a model is useful or that large-scale training is feasible.
 6. **Documentation is part of the product:** every meaningful behavior, configuration, workflow, and operational change must be documented.
 
+## Training dashboard
+
+The [IvritLM training dashboard](https://avtsye.github.io/IvritLM/) is intended to submit public data sources to GitHub Actions and show recent runs. Before it is available, enable GitHub Pages in Settings → Pages → Source → GitHub Actions. The dashboard currently performs source intake validation only; it does not yet train model weights. See [dashboard operations](docs/TRAINING_DASHBOARD.md).
+
 ## Repository map
 
 The repository is being built incrementally. Planned areas:
