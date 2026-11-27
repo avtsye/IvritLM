@@ -105,17 +105,15 @@ The text in data/smoke/hebrew_sample.txt is synthetic test material only, not a 
 
 ## Run incremental pretraining
 
-The hosted workflow accepts only a .txt corpus committed inside this public repository. That file becomes public. Do not put private, confidential, personal, gated, or restricted data here. Review source terms and permission before adding text.
-
-1. Complete the one-time Drive setup above.
-2. Add an approved UTF-8 corpus, for example data/corpus/train.txt.
-3. Open the training dashboard, enter your GitHub token, and use the incremental-training section; alternatively open GitHub → Actions → IvritLM - Incremental Pretraining and GGUF Export → Run workflow.
-4. Supply the repository-relative corpus path, 1–1,000 additional steps, and batch size 1–16.
-5. The workflow downloads the latest Drive checkpoint (or starts from random weights if the folder has no checkpoint), performs additional updates, and uploads a new checkpoint version into the current module-version folder.
-6. It exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to the same version folder.
+1. Complete the one-time Google Drive setup above and add the four GitHub Actions secrets.
+2. Optionally run the dashboard's source intake to create a Hebrew corpus candidate in Drive. Review its source rights and provenance before training.
+3. In the dashboard's incremental-training section, leave the corpus path empty to use the latest corpus from Drive, or enter a repository-relative UTF-8 .txt file path.
+4. Choose 1–1,000 additional steps and batch size 1–16, then dispatch the workflow.
+5. The workflow restores the latest checkpoint and (when path is empty) the latest Drive corpus. If no checkpoint exists, it starts from random weights.
+6. It trains, saves a new checkpoint, exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to the module-version folder.
 7. GitHub Actions also stores a secondary 14-day copy.
 
-A short CPU run is an engineering experiment, not meaningful pretraining. The hosted workflow explicitly uses CPU; it does not promise free GPU training.
+The source-intake process creates a corpus candidate; it does not certify copyright or usage rights. Only use sources for which you have explicit authorization. A short CPU run is an engineering experiment, not meaningful pretraining. The hosted workflow uses CPU and does not promise free GPU training.
 
 ## GGUF conversion status
 
