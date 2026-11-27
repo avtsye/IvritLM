@@ -196,13 +196,13 @@ def upload_corpus():
         merged = []
         seen = set()
         for record in records(previous) + records(incoming):
-            body = record.split("\\n", 1)[1] if "\\n" in record else record
-            normalized = re.sub(r"\\s+", " ", body).strip()
+            body = record.split("\n", 1)[1] if "\n" in record else record
+            normalized = re.sub(r"\s+", " ", body).strip()
             digest_record = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
             if normalized and digest_record not in seen:
                 seen.add(digest_record)
                 merged.append(record)
-        combined = "\\n\\n".join(merged).strip() + "\\n"
+        combined = "\n\n".join(merged).strip() + "\n"
         source.write_text(combined, encoding="utf-8")
         manifest["accepted_document_count"] = len(merged)
         manifest["cumulative_batches"] = int(latest.get("corpus_batches", 1)) + 1
@@ -211,7 +211,7 @@ def upload_corpus():
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
     manifest["corpus_sha256"] = digest
     manifest["corpus_bytes"] = source.stat().st_size
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     corpus_folder = ensure_corpus_folder(session)
     name = f"hebrew-corpus-{digest[:16]}.txt"
     uploaded = upload_file(session, source, name, parent_id=corpus_folder)
