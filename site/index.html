@@ -1,18 +1,18 @@
 <!doctype html>
-<html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="IvritLM training dashboard"><title>IvritLM · ניהול אימונים</title><link rel="stylesheet" href="./styles.css"></head>
+<html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="IvritLM training dashboard"><title>IvritLM · מרכז אימון וניהול מודולים</title><link rel="stylesheet" href="./styles.css"></head>
 <body>
 <header class="top"><a class="brand" href="./"><b>א</b><span><strong>IvritLM</strong><small>Hebrew Language Model</small></span></a><nav><a class="active" href="./">ניהול אימונים</a><a href="https://github.com/avtsye/IvritLM" target="_blank" rel="noreferrer">המאגר ↗</a><a href="https://github.com/avtsye/IvritLM/actions" target="_blank" rel="noreferrer">ריצות Actions ↗</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.he.md">עברית</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">English</a></nav></header>
 <main class="wrap">
-<section class="intro"><div><p class="eyebrow">TRAINING CONTROL CENTER</p><h1>ניהול אימונים</h1><p>בדיקת מקורות נתונים והפעלת אימונים מבוקרים באמצעות GitHub Actions.</p></div><span class="pill">● סביבת פיתוח</span></section>
-<section class="notice"><b>מצב נוכחי: אימון מתמשך וייצוא GGUF</b><p>אפשר להמשיך אימון קודם ולשמור תוצרים בתיקיית גרסת המודול המתאימה ב־Google Drive. קליטת מקור ציבורי יוצרת קורפוס מועמד בעברית ושומרת אותו ב-Drive. לאחר בדיקת התוכן וההרשאות אפשר להפעיל אימון על הקורפוס האחרון. נדרשת הגדרת Drive חד-פעמית.</p></section>
+<section class="intro"><div><p class="eyebrow">TRAINING CONTROL CENTER</p><h1>ניהול אימונים</h1><p>הוספת טקסטים וקישורים, בניית קורפוס עברי, אימון מתמשך וניהול תוצרי המודל — במקום אחד.</p></div><span class="pill">● סביבת פיתוח</span></section>
+<section class="notice"><b>סביבת עבודה אחידה: נתונים ← קורפוס ← אימון ← מודל</b><p>אפשר להזין טקסט ישירות, להעלות קובץ טקסט או לסרוק אתר ציבורי. החומר עובר ניקוי ובדיקת עברית, נשמר כקורפוס ב־Google Drive ומשמש לאימון המודל. כל התהליך והיסטוריית הריצות מרוכזים בדף זה.</p></section>
 <section class="panel quick-guide">
-<div class="head"><div><p class="eyebrow">QUICK START / מדריך מהיר</p><h2>מתחילים בחמש פעולות</h2></div><small>מדריך</small></div>
+<div class="head"><div><p class="eyebrow">QUICK START / מדריך מהיר</p><h2>מתחילים בארבע פעולות</h2></div><small>מדריך</small></div>
 <ol>
 <li><b>מחברים את Google Drive פעם אחת:</b> מריצים <code>python scripts/google_drive_auth.py</code> ובוחרים בחלון את קובץ ה-OAuth מסוג Desktop app.</li>
 <li><b>מגדירים ארבעה GitHub Secrets:</b> מעתיקים את DRIVE_CLIENT_ID, DRIVE_CLIENT_SECRET, DRIVE_REFRESH_TOKEN ו-DRIVE_FOLDER_ID למסך Secrets של המאגר.</li>
 <li><b>יוצרים GitHub Token:</b> הרשאת Actions Read and write למאגר IvritLM בלבד, ומדביקים אותו בשדה GitHub token.</li>
-<li><b>מכינים קורפוס:</b> מעלים למאגר קובץ TXT בקידוד UTF-8 שיש הרשאה להשתמש בו לאימון.</li>
-<li><b>מפעילים אימון:</b> מזינים את נתיב הקובץ, צעדים ו-Batch size ולוחצים על הפעלת אימון והפקת GGUF.</li>
+<li><b>מוסיפים חומר:</b> מדביקים טקסט, בוחרים קובץ TXT או מזינים קישור לאתר ציבורי.</li>
+<li><b>מאמנים ומייצאים:</b> בוחרים צעדי אימון ו־Batch size ומפעילים אימון והפקת GGUF.</li>
 </ol>
 <div class="guide-links"><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.he.md">המדריך המלא בעברית ↗</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">Full guide in English ↗</a></div>
 <p class="hint">נתקעת? אם קיבלת שגיאה בבחירת קובץ Google, אל תבחר token.json. צריך את קובץ ה-OAuth שהורדת מ-Google Cloud ושמו בדרך כלל מתחיל ב-client_secret_.</p>
@@ -30,6 +30,12 @@
 <p class="hint">האסימון נשמר בזיכרון הדף בלבד. הוא אינו נשמר בדפדפן או במאגר. ניתן לנקות אותו או לסגור את הלשונית.</p>
 <div class="token-actions"><button type="button" id="clear-token" class="secondary">ניקוי אסימון</button><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">יצירת אסימון ↗</a></div>
 <div class="permissions"><b>הרשאות נדרשות</b><ul><li>גישה למאגר IvritLM בלבד</li><li>Actions: Read and write</li><li>Metadata: Read-only (ברירת מחדל)</li></ul></div><div class="permissions" style="margin-top:14px"><b>חיבור Google Drive</b><p>החיבור מתבצע פעם אחת מהמחשב שלך באמצעות Google OAuth. לאחר מכן מוסיפים ארבעה GitHub Actions Secrets; דף הניהול אינו קורא או מציג את פרטי ההתחברות.</p><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md#connect-ivritlm-to-your-google-drive-one-time" target="_blank" rel="noreferrer">פתיחת מדריך חיבור ל־Drive ↗</a></div></aside></div>
+<section class="panel paste" id="text-ingestion"><div class="head"><div><p class="eyebrow">02 / ADD TRAINING TEXT</p><h2>הוספת טקסט ישירות למאגר</h2></div><small>טקסט / TXT</small></div>
+<form id="text-form"><label for="training-text">הדבק כאן טקסט בעברית</label><textarea id="training-text" rows="8" maxlength="40000" placeholder="הדבק טקסט בעברית כאן… (עד 40,000 תווים)" required></textarea>
+<div class="file-row"><label for="text-file">או בחר קובץ TXT מהמחשב</label><input id="text-file" type="file" accept=".txt,text/plain"></div>
+<p class="hint">אפשר להדביק טקסט או לטעון קובץ TXT. בשלב זה מגבלת ההזנה הישירה היא 40,000 תווים לריצה. הטקסט יישלח ל־GitHub Actions, יעבור בדיקת עברית ויישמר ב־Google Drive כקורפוס חדש.</p>
+<div class="check"><input id="text-license-ack" type="checkbox" required><label for="text-license-ack">יש לי הרשאה להשתמש בטקסט הזה לאימון המודל, והוא אינו פרטי או חסוי.</label></div>
+<button id="text-submit-btn" type="submit"><span>שמירת הטקסט במאגר האימון</span><b>←</b></button><p id="text-message" role="status"></p></form></section>
 <section class="panel pretrain"><div class="head"><div><p class="eyebrow">03 / MODEL TRAINING</p><h2>הפעלת אימון מתמשך</h2></div><small>02</small></div>
 <form id="pretrain-form"><label for="corpus-path">נתיב לקובץ קורפוס מאושר במאגר</label><input id="corpus-path" type="text" placeholder="ריק = שימוש בקורפוס האחרון שנשמר ב-Drive"><p class="hint">אפשר להשאיר ריק כדי להשתמש בקורפוס האחרון שנוצר מתהליך קליטת המקורות ב-Drive. לחלופין, אפשר לציין נתיב יחסי לקובץ TXT שכבר נמצא במאגר הציבורי.</p>
 <div class="training-fields"><div><label for="training-steps">צעדי אימון נוספים</label><input id="training-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="batch-size">Batch size</label><input id="batch-size" type="number" min="1" max="16" value="4" required></div></div>
