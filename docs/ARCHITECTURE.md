@@ -2,44 +2,33 @@
 
 ## Goal
 
-IvritLM is intended to be a Hebrew-first, decoder-only Transformer language model trained with next-token prediction from randomly initialized parameters.
+IvritLM is a Hebrew-first decoder-only Transformer trained with next-token prediction from randomly initialized parameters.
 
-## Planned pipeline
+## Implemented baseline
 
-1. **Corpus manifest:** identifies approved source datasets, versions, licenses/permissions, and checksums.
-2. **Text normalization:** deterministic Unicode normalization and conservative cleanup. Preserve Hebrew letters, punctuation, and meaningful formatting; log every transformation.
-3. **Tokenizer:** train a SentencePiece tokenizer on the approved training split only. Store its vocabulary size, model file checksum, normalization settings, and training-corpus manifest.
-4. **Tokenization:** convert documents into token sequences, keeping document boundaries explicit and preventing train/evaluation leakage.
-5. **Model:** decoder-only Transformer with causal attention, token embeddings, positional representation, normalization, feed-forward blocks, and a language-model head.
-6. **Training:** causal language modeling; predict the next token using only preceding context.
-7. **Evaluation:** held-out loss/perplexity, tokenizer coverage and Hebrew-specific qualitative test cases.
-8. **Inference:** load a named checkpoint and its exact tokenizer/config pair.
-
-## Initial scale
-
-The first milestone targets a deliberately small model (approximately 10–30 million parameters) to validate the complete engineering pipeline. This is a development target, not a claim that this scale will produce a broadly capable assistant. Parameter count, context length, vocabulary size, and batch settings must be recorded in the experiment config.
+1. `ivritlm/config.py` validates model and training parameters.
+2. `ivritlm/tokenizer.py` maps UTF-8 bytes to IDs 0–255 and reserves 256/257 for BOS/EOS. This is lossless for Hebrew Unicode but inefficient in sequence length; it is a temporary baseline.
+3. `ivritlm/model.py` implements token and position embeddings, pre-normalized causal self-attention blocks, GELU feed-forward layers, final normalization, and a tied language-model head.
+4. `ivritlm/training.py` samples shifted token windows, optimizes cross-entropy with AdamW, logs train/validation loss, and writes a checkpoint and metrics JSON.
+5. `scripts/smoke_train.py` runs a tiny deterministic software test on synthetic Hebrew text.
+6. `scripts/train.py` is the command-line entry point for a UTF-8 text corpus approved for training.
 
 ## From-scratch requirement
 
-The initial model must use random initialization. No pretrained language-model checkpoint, embedding matrix, or transferred model weights may be loaded. Generic software libraries and tokenizer implementations are allowed; they are not model pretraining.
+The model is initialized randomly. No pretrained language-model checkpoint, embedding matrix, or transferred weights are loaded. PyTorch is used as a tensor/autograd framework, not as a source of pretrained weights.
+
+## Next pipeline stages
+
+- Approved corpus manifest with provenance, license basis, version, and checksum.
+- Deterministic text normalization, deduplication, and split isolation.
+- Train a Hebrew subword tokenizer on training data only.
+- Evaluation on a held-out set, including loss/perplexity and a fixed Hebrew prompt suite.
+- Checkpoint resume, learning-rate scheduler, inference CLI, and complete run metadata.
+
+## Scale and limitations
+
+The current pretraining workflow uses a small CPU-oriented configuration: 128-dimensional hidden state, 4 layers, 4 attention heads, and 128-token context. It is designed to validate the pipeline, not to produce a capable assistant. Realistic from-scratch training requires a much larger clean corpus and suitable GPU compute.
 
 ## Reproducibility metadata
 
-Each training run should record:
-
-- Git commit SHA.
-- Config file and resolved configuration.
-- Tokenizer artifact hash.
-- Dataset manifest and split hashes.
-- Random seed.
-- Python, PyTorch, CUDA, and hardware details.
-- Training steps, tokens seen, elapsed time, loss, and validation metrics.
-- Checkpoint hash and whether training completed or stopped early.
-
-## Design principles
-
-- Keep model, tokenizer, dataset, training loop, evaluation, and inference as separate modules.
-- Make configuration explicit and validate it before starting expensive work.
-- Support checkpoint resume without silently changing optimizer or scheduler state.
-- Keep CPU smoke tests small and deterministic.
-- Never confuse a successful pipeline test with evidence of model quality.
+The current checkpoint stores model and training configuration, random seed, corpus SHA-256, optimizer state, step, and loss history. Git revision, hardware/software inventory, RNG state, and a signed corpus manifest are still pending.
