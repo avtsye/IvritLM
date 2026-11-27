@@ -10,7 +10,7 @@
 - **Initialization:** random weights for the first run; later runs restore and continue the previous checkpoint.
 - **Tokenizer:** deterministic UTF-8 byte tokenizer (258 IDs, including BOS/EOS). It handles Hebrew reliably but is inefficient; a trained Hebrew subword tokenizer remains a next milestone.
 - **Incremental training:** restores model weights, optimizer state, global step, and RNG state; each run adds the requested number of optimizer steps.
-- **Persistence:** each IvritLM package version has a dedicated Google Drive subfolder containing step-numbered checkpoints, tokenizer metadata, manifests, metrics, and GGUF files. A root-level latest.json points to the newest files. GitHub Actions artifacts are a 14-day secondary copy.
+- **Persistence:** each IvritLM package version has a dedicated Google Drive subfolder for checkpoints, tokenizer metadata, manifests, metrics, and GGUF files. Hebrew corpus candidates and provenance manifests are stored separately in `IvritLM Corpora`; root-level `latest.json` points to the latest model and corpus. GitHub Actions artifacts are a 14-day secondary copy.\n- **Source intake:** bounded public GitHub repositories or web pages can be converted into Hebrew corpus candidates, deduplicated, provenance-tracked, and saved to Drive. Rights must be reviewed manually; source intake does not itself start training.
 - **GGUF:** exports through a GPT-2-compatible bridge and the pinned llama.cpp converter. Runtime compatibility still requires separate validation.
 - **Compute:** GitHub-hosted CPU is suitable only for tiny experiments. Real pretraining needs a substantially larger approved corpus and suitable compute.
 
@@ -52,6 +52,6 @@ Do not use data/smoke/hebrew_sample.txt as a real training corpus. It exists sol
 
 ## Limitations and next milestones
 
-The baseline still uses bytes rather than efficient subword tokens, and the hosted workflow is CPU-only and bounded. The GGUF bridge is an initial GPT-2-compatible export path; it is not a claim of runtime-validated compatibility until conversion and runtime tests pass. The dashboard can dispatch source inspection and incremental pretraining; source inspection still does not automatically build a corpus. Actual training requires Drive secrets and an approved corpus file. Corpus curation, tokenizer training, evaluation, GPU training, and source-to-corpus ingestion remain future work.
+The baseline still uses bytes rather than efficient subword tokens, and the hosted workflow is CPU-only and bounded. The GGUF bridge is an initial GPT-2-compatible export path; it is not a claim of runtime-validated compatibility until conversion and runtime tests pass. The dashboard can dispatch source-to-corpus intake and incremental pretraining. Corpus extraction is bounded and Hebrew-filtered; it cannot determine legal permissions. Actual training requires Drive secrets and an approved corpus file. Corpus curation, tokenizer training, evaluation, GPU training, and source-to-corpus ingestion remain future work.
 
 Training from scratch is data- and compute-intensive. GitHub Actions is used for repeatable tests and bounded CPU experiments, not promised free GPU training. Code, dataset, and checkpoint licenses are separate questions.
