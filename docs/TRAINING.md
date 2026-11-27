@@ -1,65 +1,89 @@
 # Training and automation operations
 
-## Implemented workflows
+## Workflows
 
 | Workflow | Trigger | Purpose | Output |
 |---|---|---|---|
-| `ci.yml` | push, pull request, manual | compile package, install pinned dependencies, run tests, validate dashboard | test result |
-| `smoke-train.yml` | model-code changes or manual | 12-step synthetic CPU training check | smoke checkpoint and metrics, 7-day artifact |
-| `pretrain.yml` | manual only | bounded training on an approved UTF-8 text file already in the repository | checkpoint, tokenizer metadata, metrics, 14-day artifact |
-| `train.yml` | manual from dashboard | inspect a public source and produce a provenance intake report | intake report only |
+| ci.yml | push, pull request, manual | compile package, install dependencies, run tests | test result |
+| smoke-train.yml | model-code changes or manual | synthetic CPU training check | smoke checkpoint and metrics |
+| pretrain.yml | manual only | restore Drive checkpoint, add training steps, export GGUF | versioned Drive files plus 14-day Actions artifact |
+| train.yml | manual from dashboard | inspect a public source and produce a provenance report | intake report only |
 
-The source-intake workflow and pretraining workflow are intentionally separate. Submitting a URL to the dashboard does not silently authorize or ingest its contents into the training corpus.
+The source-intake workflow and pretraining workflow are separate. The dashboard does not yet dispatch incremental pretraining.
 
-## Model implementation
+## Incremental training
 
-The package in `ivritlm/` currently includes:
+The model package contains:
+- ivritlm/config.py: validated model and training settings.
+- ivritlm/tokenizer.py: UTF-8 byte tokenizer (IDs 0–255, BOS 256, EOS 257).
+- ivritlm/model.py: randomly initialized decoder-only Transformer.
+- ivritlm/training.py: next-token training, AdamW, validation loss, and resumable checkpoints.
 
-- `config.py`: validated model and training settings.
-- `tokenizer.py`: deterministic UTF-8 byte tokenizer (IDs 0–255 for bytes, 256 BOS, 257 EOS).
-- `model.py`: randomly initialized decoder-only Transformer with causal self-attention.
-- `training.py`: next-token batches, AdamW updates, validation loss, checkpoint and metrics output.
+When --resume points to a prior checkpoint, training restores model weights, optimizer state, global step, and RNG state. The --steps value means additional steps for this run. Model configuration and tokenizer version must match; incompatible checkpoints are rejected. New corpus SHA-256 values are appended to the checkpoint history.
 
-This is a baseline implementation. Byte tokenization is inefficient compared with a trained Hebrew subword tokenizer. There is no claim of useful language ability until a real approved corpus is trained and independently evaluated.
+Each run writes checkpoint.pt (model tensors, optimizer state, config, step, corpus hashes, loss history, RNG state), tokenizer.json, metrics.json, and run-manifest.json.
 
-## Run a synthetic smoke test locally
+## One-time Google Drive setup
 
-```bash
-python -m pip install -r requirements-model.txt
-python -m pytest -q
-python scripts/smoke_train.py
-```
+The workflow uses the owner's OAuth refresh token so files are stored in the owner's Drive. It does not use a service-account-owned My Drive.
 
-The smoke sample in `data/smoke/hebrew_sample.txt` is synthetic test text only. Never report its checkpoint as a Hebrew model release.
+1. In Google Cloud Console, create/select a project and enable the Google Drive API.
+2. Configure the OAuth consent screen. If the app is in Testing mode, add the Google account that owns the Drive folder as a test user.
+3. Create an OAuth client of type Desktop app and download its client-secrets JSON.
+4. Create a Google Drive folder for IvritLM model versions. Copy the folder ID from its URL (the part after /folders/).
+5. In a local clone, install requirements-model.txt and run:
+   python scripts/google_drive_auth.py --client-secrets path/to/client_secret.json
+6. Complete Google's authorization in the browser. The helper prints the client ID, client secret, and refresh token.
+7. In GitHub → repository Settings → Secrets and variables → Actions, create these repository secrets:
+   - DRIVE_CLIENT_ID
+   - DRIVE_CLIENT_SECRET
+   - DRIVE_REFRESH_TOKEN
+   - DRIVE_FOLDER_ID
 
-## Run pretraining on a reviewed corpus
+Treat the client secret and refresh token as passwords. Never commit the OAuth JSON, refresh token, checkpoint, or private corpus. Do not paste credentials into chat or workflow logs. If a credential is exposed, revoke it in Google Cloud and create a new one.
 
-The current GitHub-hosted workflow accepts only a `.txt` file already committed inside this repository. Because this repository is public, committing a corpus makes it public too. Do not place private, confidential, personal, gated, or otherwise restricted data here. Review source terms and permission before adding any text.
+## What is stored in Drive
 
-1. Add the approved corpus at a repository path, for example `data/corpus/train.txt`.
-2. Open GitHub → Actions → **IvritLM - Pretraining** → Run workflow.
-3. Supply the repository-relative path, a step count from 1 to 1,000, and batch size from 1 to 16.
-4. The hosted CPU job trains from random initialization and uploads `checkpoint.pt`, `tokenizer.json`, and `metrics.json` as a 14-day artifact.
-5. Download the artifact from that run. Keep its config, corpus provenance, and metrics together.
+Every successful training run creates versioned files in the selected folder:
+- checkpoint-step-000000000100.pt: full trainable weights plus optimizer/RNG state.
+- tokenizer-step-000000000100.json: tokenizer metadata.
+- manifest-step-000000000100.json: run configuration and corpus hashes.
+- metrics-step-000000000100.json: training metrics.
+- ivritlm-step-000000000100.gguf: inference-oriented GGUF export.
+- latest.json: pointer to the latest checkpoint and GGUF file IDs.
 
-A short CPU run is an engineering experiment, not meaningful pretraining. The default architecture is intentionally small (128 hidden dimensions, 4 layers, context 128) to keep the first workflow bounded. For larger runs, first configure a suitable GPU runner and external artifact storage; do not assume GitHub-hosted CPU is adequate.
+The step number is illustrative. Files are versioned, not overwritten. Drive storage use grows with each run; old versions can be archived or cleaned up after a retention policy is chosen. The checkpoint is uploaded before GGUF conversion, so a conversion failure does not discard newly trained weights. The latest GGUF pointer updates only after export upload succeeds.
 
-## Checkpoints and limitations
+## Local smoke test
 
-A checkpoint currently contains model weights, optimizer state, step, model/training settings, seed, corpus SHA-256, and logged losses. Atomic local writing is used before artifact upload. A dedicated resume implementation, scheduler state, random-generator-state restoration, source manifest, Git commit metadata, and durable artifact storage are not implemented yet. The Actions artifact expires after 14 days, so download and preserve any run you need.
+Install requirements-model.txt, then run:
+- python -m pytest -q
+- python scripts/smoke_train.py
+
+The text in data/smoke/hebrew_sample.txt is synthetic test material only, not a real training corpus.
+
+## Run incremental pretraining
+
+The hosted workflow accepts only a .txt corpus committed inside this public repository. That file becomes public. Do not put private, confidential, personal, gated, or restricted data here. Review source terms and permission before adding text.
+
+1. Complete the one-time Drive setup.
+2. Add an approved UTF-8 corpus, for example data/corpus/train.txt.
+3. Open GitHub → Actions → IvritLM - Incremental Pretraining and GGUF Export → Run workflow.
+4. Supply the repository-relative corpus path, 1–1,000 additional steps, and batch size 1–16.
+5. The workflow downloads the latest Drive checkpoint (or starts from random weights if the folder has no checkpoint), performs additional updates, and uploads a new checkpoint version.
+6. It exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to Drive.
+7. GitHub Actions also stores a secondary 14-day copy.
+
+A short CPU run is an engineering experiment, not meaningful pretraining. The default architecture is small (128 hidden dimensions, 4 layers, context 128). The hosted workflow explicitly uses CPU; it does not promise free GPU training.
+
+## GGUF conversion status
+
+scripts/export_hf.py maps IvritLM tensors to a GPT-2-compatible state dictionary and builds a byte-level GPT-2 vocabulary with no merge rules. The workflow invokes llama.cpp's convert_hf_to_gguf.py at a pinned commit. This is an initial compatibility bridge, not a claim that every inference runtime has been verified. The GGUF smoke workflow must pass before treating the format as verified.
 
 ## Security and operations
 
-- Workflows use read-only repository permissions unless a documented write action is required.
-- Only manual dispatch starts pretraining; no training runs automatically on pull requests.
-- The workflow validates that the corpus path resolves inside the checked-out repository and that step/batch values stay bounded.
-- Never put secrets in corpus files, workflow inputs, logs, or artifacts.
-- A standard hosted runner has no guaranteed GPU. Current pretraining explicitly uses CPU.
-
-## Next engineering steps
-
-1. Create an approved corpus manifest with source URL, license/permission review, snapshot/version, checksum, language and split.
-2. Build a deterministic corpus cleaner and train/validation/test split process.
-3. Replace the byte tokenizer with a trained Hebrew subword tokenizer and preserve tokenizer/model compatibility metadata.
-4. Add checkpoint resume, learning-rate scheduling, evaluation, and generation CLI.
-5. Add a GPU runner and durable artifact store after hardware and cost are agreed.
+- Training starts only through manual dispatch.
+- The workflow serializes training runs to prevent concurrent checkpoint races.
+- OAuth credentials are passed only through GitHub Actions secrets.
+- Corpus paths are validated to remain inside the checked-out repository.
+- Checkpoint files contain the full model and optimizer state; protect the Drive folder accordingly.
