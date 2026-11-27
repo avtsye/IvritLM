@@ -19,6 +19,8 @@ permissions:
 jobs:
   smoke-train:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
     timeout-minutes: 45
     steps:
       - name: Checkout IvritLM
