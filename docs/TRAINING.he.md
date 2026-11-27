@@ -85,7 +85,7 @@ python scripts/google_drive_auth.py --client-secrets "C:\נתיב\client_secret.
 
 האימון ממשיך מה-Checkpoint האחרון ב-Drive. אם זו הפעם הראשונה, המודל מתחיל ממשקולות אקראיות. ריצת CPU קטנה בודקת שהתהליך עובד; היא אינה מאמנת מודל שימושי.
 
-## 5. בדיקת תוצאות
+## 6. בדיקת תוצאות
 
 - ב-GitHub Actions בדוק שכל השלבים הסתיימו בהצלחה.
 - ב-Google Drive פתח `IvritLM Models/<module-version>/`.
@@ -94,7 +94,7 @@ python scripts/google_drive_auth.py --client-secrets "C:\נתיב\client_secret.
 - `metrics-*.json` מכיל מדדי אימון.
 - `latest.json` נמצא בתיקייה הראשית ומפנה לקובץ האחרון.
 
-## פתרון תקלות נפוצות
+## 7. פתרון תקלות נפוצות
 
 | הודעה או בעיה | מה לעשות |
 |---|---|
