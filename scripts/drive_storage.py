@@ -13,7 +13,8 @@ SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
 CHUNK_SIZE = 8 * 1024 * 1024
-ROOT_FOLDER_NAME = "IvritLM Models"\nCORPUS_FOLDER_NAME = "IvritLM Corpora"
+ROOT_FOLDER_NAME = "IvritLM Models"
+CORPUS_FOLDER_NAME = "IvritLM Corpora"
 
 
 def drive_session():
