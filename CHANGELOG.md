@@ -5,6 +5,18 @@ All notable project changes are documented here. Entries describe repository cha
 ## Unreleased
 
 ### Added
+- Hebrew RTL training dashboard under site/, with GitHub Actions dispatch and recent-run listing.
+- Manual source-intake workflow for public GitHub repositories and public HTTPS pages.
+- Bounded source inspection and JSON provenance report artifact.
+- Dashboard operations and credential-handling documentation.
+
+### Limitations
+- This milestone validates and inspects sources only; it does not yet build a corpus or train model weights.
+- GitHub Pages must be enabled in repository settings before the dashboard URL becomes available.
+
+## Previous bootstrap changes
+
+### Added
 - Initial project overview and navigation.
 - Development, architecture, data policy, training operations, testing, and decision-log documentation.
 
