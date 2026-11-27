@@ -5,6 +5,19 @@ All notable project changes are documented here. Entries describe repository cha
 ## Unreleased
 
 ### Added
+- RTL web dashboard for source intake, GitHub Actions dispatch, and recent run status.
+- Source inspection workflow for public GitHub repositories and public HTTPS pages, with bounded downloads and a JSON intake report artifact.
+- CI checks for Python compilation and dashboard JavaScript syntax.
+- Fine-grained token handling guidance; dashboard token remains in page memory only.
+
+### Fixed
+- Pages deployment now documents the one-time repository setting required to enable GitHub Pages.
+
+### Limitations
+- Source intake only; corpus construction and actual model-weight training are not implemented yet.
+- GitHub Pages requires a one-time administrator setting: Settings → Pages → Source → GitHub Actions.
+
+### Added
 - Hebrew RTL training dashboard under site/, with GitHub Actions dispatch and recent-run listing.
 - Manual source-intake workflow for public GitHub repositories and public HTTPS pages.
 - Bounded source inspection and JSON provenance report artifact.
