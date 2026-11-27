@@ -43,6 +43,12 @@
 <div class="training-fields"><div><label for="training-steps">צעדי אימון נוספים</label><input id="training-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="batch-size">Batch size</label><input id="batch-size" type="number" min="1" max="16" value="4" required></div></div>
 <p class="hint">האימון ימשיך מה־checkpoint האחרון ב־Drive. בסיום תישמר גרסת checkpoint חדשה וייוצר קובץ GGUF. נדרשים סודות Google Drive המפורטים במדריך.</p>
 <button id="pretrain-btn" type="submit"><span>הפעלת אימון והפקת GGUF</span><b>←</b></button><p id="pretrain-message" role="status"></p></form></section>
+<section class="panel chat-panel" id="chat-tuning"><div class="head"><div><p class="eyebrow">04 / CONVERSATION TRAINING</p><h2>אימון יכולת שיחה</h2></div><small>JSONL</small></div>
+<form id="chat-form"><label for="chat-jsonl">דוגמאות שיחה בעברית — שורה אחת לכל שיחה</label><textarea id="chat-jsonl" rows="9" maxlength="60000" dir="ltr" spellcheck="false" placeholder='{"messages":[{"role":"user","content":"שלום, מה שלומך?"},{"role":"assistant","content":"שלום! אני כאן כדי לעזור."}]}' required></textarea>
+<p class="hint">כל שורה היא אובייקט JSON עם מערך messages. התפקידים המותרים: system, user, assistant; השיחה חייבת להסתיים בתשובת assistant. מומלץ להוסיף מאות ואלפי דוגמאות איכותיות ומגוונות. הנתונים משמשים לאימון נוסף על גבי checkpoint קיים.</p>
+<div class="training-fields"><div><label for="chat-steps">צעדי אימון</label><input id="chat-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="chat-batch">Batch size</label><input id="chat-batch" type="number" min="1" max="16" value="4" required></div></div>
+<p class="hint">נדרש אימון בסיסי קודם. בסיום נשמר checkpoint מעודכן ונוצר GGUF חדש ב־Google Drive.</p>
+<button id="chat-submit-btn" type="submit"><span>אימון שיחות ויצירת GGUF</span><b>←</b></button><p id="chat-message" role="status"></p></form></section>
 <section class="panel runs"><div class="head"><div><p class="eyebrow">04 / ACTIVITY</p><h2>ריצות אחרונות</h2></div><button id="refresh-runs" class="secondary" type="button">רענון ↻</button></div><div id="runs"><p class="empty">הזן אסימון GitHub ולחץ על רענון כדי להציג ריצות.</p></div></section>
 <footer><span>IvritLM · Hebrew language model research</span><span><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">מדריך אימון</a> · <a href="https://github.com/avtsye/IvritLM/blob/main/docs/DATA_POLICY.md">מדיניות נתונים</a></span></footer>
 </main><script src="./app.js" defer></script></body></html>
