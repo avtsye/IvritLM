@@ -203,6 +203,53 @@
     }
   });
 
+
+  const chatForm = $("chat-form");
+  const chatButton = $("chat-submit-btn");
+  const chatMessage = $("chat-message");
+  function sayChat(value, error = false) {
+    chatMessage.textContent = value;
+    chatMessage.classList.toggle("error", error);
+  }
+  chatForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    sayChat("");
+    token = $("github-token").value.trim();
+    if (!token) { sayChat("יש להזין תחילה אסימון GitHub.", true); return; }
+    const raw = $("chat-jsonl").value.trim();
+    if (!raw || raw.length > 60000) { sayChat("יש להזין נתוני JSONL עד 60,000 תווים.", true); return; }
+    const rows = raw.split(/\\r?\\n/).filter(line => line.trim());
+    try {
+      if (!rows.length) throw new Error("לא נמצאו שיחות.");
+      for (let i = 0; i < rows.length; i++) {
+        const item = JSON.parse(rows[i]);
+        if (!item || !Array.isArray(item.messages) || item.messages.length < 2) throw new Error("שורה " + (i + 1) + ": נדרש messages עם לפחות שתי הודעות.");
+        let last = "";
+        for (const message of item.messages) {
+          if (!message || !["system","user","assistant"].includes(message.role) || typeof message.content !== "string" || !message.content.trim()) throw new Error("שורה " + (i + 1) + ": הודעה לא תקינה.");
+          if (last === message.role && message.role !== "system") throw new Error("שורה " + (i + 1) + ": יש להחליף בין user ל-assistant.");
+          last = message.role;
+        }
+        if (last !== "assistant") throw new Error("שורה " + (i + 1) + ": כל שיחה חייבת להסתיים בתשובת assistant.");
+      }
+    } catch (e) { sayChat("בדיקת הנתונים נכשלה: " + e.message, true); return; }
+    const steps = Number($("chat-steps").value), batch = Number($("chat-batch").value);
+    if (!Number.isInteger(steps) || steps < 1 || steps > 1000 || !Number.isInteger(batch) || batch < 1 || batch > 16) {
+      sayChat("צעדי האימון חייבים להיות 1–1,000 ו-Batch size חייב להיות 1–16.", true); return;
+    }
+    chatButton.disabled = true;
+    chatButton.querySelector("span").textContent = "מפעיל אימון שיחות…";
+    try {
+      await dispatchWorkflow("chat-tuning.yml", {chat_jsonl:raw,steps:String(steps),batch_size:String(batch)});
+      sayChat("אימון השיחות התקבל. המערכת תמשיך מה-checkpoint האחרון, תשמור גרסה מעודכנת ותנסה ליצור ולהעלות GGUF. אפשר לעקוב באזור הריצות.");
+      setTimeout(loadRuns, 2500);
+    } catch (e) { sayChat(e.message, true); }
+    finally {
+      chatButton.disabled = false;
+      chatButton.querySelector("span").textContent = "אימון שיחות ויצירת GGUF";
+    }
+  });
+
   pretrainForm.addEventListener("submit", async event => {
     event.preventDefault();
     sayPretrain("");
