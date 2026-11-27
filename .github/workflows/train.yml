@@ -14,6 +14,16 @@ on:
         options:
           - github
           - web
+      training_steps:
+        description: Training steps to run automatically after intake
+        required: true
+        default: "100"
+        type: string
+      batch_size:
+        description: Training batch size
+        required: true
+        default: "4"
+        type: string
       license_ack:
         description: Confirm you have rights to use all selected text for model training
         required: true
@@ -24,6 +34,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: ivritlm-source-intake
@@ -35,7 +46,7 @@ jobs:
     env:
       PYTHONPATH: .
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 360
     steps:
       - name: Check out IvritLM
         uses: actions/checkout@v4
@@ -82,6 +93,29 @@ jobs:
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
         run: python scripts/drive_storage.py upload-corpus
 
+      - name: Automatically start training after successful corpus upload
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const steps = Number("${{ inputs.training_steps }}");
+            const batchSize = Number("${{ inputs.batch_size }}");
+            if (!Number.isInteger(steps) || steps < 1 || steps > 1000) {
+              core.setFailed("training_steps must be between 1 and 1000.");
+              return;
+            }
+            if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 16) {
+              core.setFailed("batch_size must be between 1 and 16.");
+              return;
+            }
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "pretrain.yml",
+              ref: "main",
+              inputs: { corpus_path: "", steps: String(steps), batch_size: String(batchSize) }
+            });
+            core.info("Training workflow dispatched automatically after corpus upload.");
+
       - name: Upload intake report as a secondary copy
         uses: actions/upload-artifact@v4
         with:
@@ -93,4 +127,4 @@ jobs:
       - name: Report next step
         run: |
           echo "Hebrew corpus candidate and provenance were saved to Google Drive."
-          echo "Review the source rights and corpus before starting the incremental pretraining workflow."
+          echo "The corpus was uploaded successfully. Incremental training was started automatically."
