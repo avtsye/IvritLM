@@ -5,7 +5,7 @@
 ### Added
 - Incremental training that restores model weights, optimizer state, global step, and random-generator state from the prior checkpoint.
 - Corpus SHA-256 history and per-run metrics/manifests.
-- Google Drive OAuth helper and resumable uploads organized into one subfolder per IvritLM package version.
+- Google Drive OAuth helper and resumable uploads organized into one subfolder per IvritLM package version.\n- Separate Drive corpus storage, checksum verification, and automatic restore of the latest corpus for training.\n- Bounded public-source ingestion for Hebrew TXT/Markdown/RST/HTML content with deduplication and provenance.
 - Root-level latest.json pointer to the newest checkpoint and GGUF, while step-numbered outputs remain inside their version folder.
 - Expanded Google Drive connection guide covering OAuth setup, local authorization, GitHub Actions secrets, and verification.
 - GPT-2-compatible export bridge for the current byte-tokenized Transformer.
@@ -19,7 +19,7 @@
 - The byte tokenizer is a simple baseline, not the intended efficient Hebrew subword tokenizer.
 - The bundled sample corpus is synthetic and must not be treated as real training data.
 - Hosted pretraining remains CPU-only and bounded; it is not suitable for large-scale pretraining.
-- The current source-intake dashboard validates source metadata but does not yet ingest source text into the training corpus.
+- Source intake now creates a bounded Hebrew corpus candidate and provenance manifest and stores them in Drive; legal permissions still require manual review.
 - No scheduler, corpus curation pipeline, efficient tokenizer, GPU orchestration, or published production checkpoint exists yet.
 
 ### Previously added
