@@ -45,10 +45,6 @@ def build_tokenizer_files(output, context_length):
         "add_prefix_space": False,
         "bos_token": "<|bos|>",
         "eos_token": "<|eos|>",
-        "added_tokens_decoder": {
-            "256": {"content": "<|bos|>", "lstrip": False, "normalized": False, "rstrip": False, "single_word": False, "special": True},
-            "257": {"content": "<|eos|>", "lstrip": False, "normalized": False, "rstrip": False, "single_word": False, "special": True},
-        },
     }
     (output / "tokenizer_config.json").write_text(json.dumps(tokenizer_config, ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "special_tokens_map.json").write_text(
