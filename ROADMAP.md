@@ -7,6 +7,7 @@ This roadmap describes intended milestones. Items are not complete until impleme
 - [x] Document architecture direction and from-scratch requirement.
 - [x] Document data provenance and operational constraints.
 - [ ] Add code license and contribution templates.
+- [x] Add static GitHub Pages dashboard and source-intake workflow (intake validation only).
 
 ## M1 — Reproducible Python package
 - [ ] Add pinned project/development dependencies.
