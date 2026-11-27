@@ -1,4 +1,4 @@
-name: IvritLM - Source intake
+name: IvritLM - Source intake and Hebrew corpus
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ on:
           - github
           - web
       license_ack:
-        description: Confirm authorization to use this source for model training
+        description: Confirm you have rights to use all selected text for model training
         required: true
         type: choice
         options:
@@ -31,40 +31,64 @@ concurrency:
 
 jobs:
   intake:
-    name: Validate and inspect source
+    name: Build and store Hebrew corpus candidate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out IvritLM
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install intake dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements-intake.txt
-      - name: Validate authorization acknowledgement
+
+      - name: Install intake and Drive dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-intake.txt
+          python -m pip install --disable-pip-version-check -r requirements-model.txt
+
+      - name: Validate authorization and Drive configuration
         env:
           LICENSE_ACK: ${{ inputs.license_ack }}
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
         run: |
-          if [ "$LICENSE_ACK" != "yes" ]; then
-            echo "::error::The source authorization acknowledgement is required."
-            exit 1
-          fi
-      - name: Inspect source and create intake report
+          python - <<'PY'
+          import os
+          if os.environ.get("LICENSE_ACK") != "yes":
+              raise SystemExit("Confirm that you have permission to use this source for training.")
+          names = ["DRIVE_CLIENT_ID", "DRIVE_CLIENT_SECRET", "DRIVE_REFRESH_TOKEN", "DRIVE_FOLDER_ID"]
+          missing = [name for name in names if not os.environ.get(name)]
+          if missing:
+              raise SystemExit("Configure Google Drive repository secrets first: " + ", ".join(missing))
+          PY
+
+      - name: Inspect source and build Hebrew corpus candidate
         env:
           SOURCE_URL: ${{ inputs.source_url }}
           SOURCE_KIND: ${{ inputs.source_kind }}
         run: python scripts/inspect_source.py
-      - name: Upload source intake report
+
+      - name: Upload corpus and provenance manifest to Google Drive
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py upload-corpus
+
+      - name: Upload intake report as a secondary copy
         uses: actions/upload-artifact@v4
         with:
           name: ivritlm-source-intake-${{ github.run_id }}
           path: artifacts/source-intake/
           if-no-files-found: error
           retention-days: 14
-      - name: Report current training capability
+
+      - name: Report next step
         run: |
-          echo "Source validation completed."
-          echo "The from-scratch model training engine is not implemented yet."
-          echo "This run is source intake validation, not model training."
+          echo "Hebrew corpus candidate and provenance were saved to Google Drive."
+          echo "Review the source rights and corpus before starting the incremental pretraining workflow."
