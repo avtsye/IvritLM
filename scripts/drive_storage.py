@@ -1,4 +1,4 @@
-""""Durable, versioned Google Drive storage for IvritLM training outputs."""
+"""Durable, versioned Google Drive storage for IvritLM training outputs."""
 import argparse
 import json
 import os
@@ -141,7 +141,7 @@ def load_latest(session):
 def write_temp_json(value):
     path = Path("artifacts/drive-latest.json")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path
 
 
