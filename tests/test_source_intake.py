@@ -4,7 +4,7 @@ from scripts.inspect_source import clean_text, is_hebrew_text, write_corpus
 
 
 def test_clean_html_removes_script_and_navigation():
-    raw = b"<html><head><title>Title</title></head><body><nav>menu</nav><main><p>שלום עולם</p><script>secret()</script></main></body></html>"
+    raw = "<html><head><title>Title</title></head><body><nav>menu</nav><main><p>שלום עולם</p><script>secret()</script></main></body></html>".encode("utf-8")
     cleaned = clean_text(raw, ".html")
     assert "שלום עולם" in cleaned
     assert "secret" not in cleaned
