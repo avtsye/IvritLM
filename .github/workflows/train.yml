@@ -32,6 +32,8 @@ concurrency:
 jobs:
   intake:
     name: Build and store Hebrew corpus candidate
+    env:
+      PYTHONPATH: .
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
