@@ -6,7 +6,10 @@ on:
       - "ivritlm/**"
       - "tests/**"
       - "scripts/smoke_train.py"
-      - "scripts/export_hf.py"\n      - "scripts/inspect_source.py"\n      - "scripts/drive_storage.py"\n      - "requirements-intake.txt"
+      - "scripts/export_hf.py"
+      - "scripts/inspect_source.py"
+      - "scripts/drive_storage.py"
+      - "requirements-intake.txt"
       - ".github/workflows/smoke-train.yml"
   workflow_dispatch:
 
