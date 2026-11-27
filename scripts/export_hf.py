@@ -32,6 +32,10 @@ def build_tokenizer_files(output, context_length):
     output.mkdir(parents=True, exist_ok=True)
     byte_map = bytes_to_unicode()
     vocab = {byte_map[i]: i for i in range(256)}
+    # The model has two additional trained IDs; they must be present in vocab.json,
+    # not only in tokenizer_config.json, for llama.cpp to preserve the 258-token table.
+    vocab["<|bos|>"] = 256
+    vocab["<|eos|>"] = 257
     (output / "vocab.json").write_text(json.dumps(vocab, ensure_ascii=False), encoding="utf-8")
     (output / "merges.txt").write_text("#version: 0.2\n", encoding="utf-8")
     tokenizer_config = {
