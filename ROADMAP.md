@@ -6,6 +6,7 @@ Items are complete only when code, tests, and documentation are present.
 - [x] Establish project identity, scope, and architecture direction.
 - [x] Document data provenance and operational constraints.
 - [x] Add Hebrew RTL source-intake dashboard and workflow.
+- [x] Connect dashboard to incremental pretraining dispatch.
 - [x] Add CI validation for the dashboard and intake script.
 - [ ] Enable GitHub Pages in repository settings and verify public deployment.
 
