@@ -11,7 +11,7 @@ from ivritlm.tokenizer import ByteTokenizer, EOS_ID
 
 def generate_reply(model, tokenizer, history, device, max_new_tokens, temperature):
     prompt = "".join(f"### {role}\n{text.strip()}\n" for role, text in history) + "### assistant\n"
-    encoded = tokenizer.encode(prompt, add_special_tokens=True)
+    encoded = [tokenizer.bos_id, *tokenizer.encode(prompt, add_special_tokens=False)]
     context = torch.tensor([encoded], dtype=torch.long, device=device)
     generated = []
     model.eval()
