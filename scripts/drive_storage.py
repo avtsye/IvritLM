@@ -151,6 +151,62 @@ def save_latest(session, manifest):
                 matches[0]["id"] if matches else None, parent_id=folder_id())
 
 
+def ensure_corpus_folder(session):
+    matches = list_named(session, "IvritLM Corpora")
+    for item in matches:
+        if item.get("mimeType") == "application/vnd.google-apps.folder":
+            return item["id"]
+    response = session.post(f"{API}/files", json={
+        "name": "IvritLM Corpora",
+        "mimeType": "application/vnd.google-apps.folder",
+        "parents": [folder_id()],
+    }, params={"fields": "id,name,mimeType"})
+    response.raise_for_status()
+    return response.json()["id"]
+
+
+def upload_corpus():
+    session = drive_session()
+    source = Path("artifacts/source-intake/corpus.txt")
+    manifest_path = Path("artifacts/source-intake/corpus-manifest.json")
+    if not source.is_file() or not manifest_path.is_file():
+        raise FileNotFoundError("Source intake corpus or manifest is missing.")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    digest = manifest["corpus_sha256"]
+    corpus_folder = ensure_corpus_folder(session)
+    name = f"hebrew-corpus-{digest[:16]}.txt"
+    uploaded = upload_file(session, source, name, parent_id=corpus_folder)
+    manifest_upload = upload_file(
+        session, manifest_path, f"manifest-{digest[:16]}.json", parent_id=corpus_folder
+    )
+    latest = load_latest(session)
+    latest.update({
+        "corpus_file_id": uploaded["id"],
+        "corpus_file_name": name,
+        "corpus_manifest_file_id": manifest_upload["id"],
+        "corpus_sha256": digest,
+        "corpus_source_url": manifest.get("source_url"),
+        "corpus_document_count": manifest.get("accepted_document_count"),
+    })
+    save_latest(session, latest)
+    print(f"Uploaded Hebrew corpus candidate to Google Drive/IvritLM Corpora/{name}")
+
+
+def download_corpus():
+    session = drive_session()
+    latest = load_latest(session)
+    file_id = latest.get("corpus_file_id")
+    if not file_id:
+        raise RuntimeError("No corpus exists in Drive yet. Run source intake first.")
+    target = Path("artifacts/pretraining/corpus.txt")
+    download_file(session, file_id, target)
+    import hashlib
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    if digest != latest.get("corpus_sha256"):
+        raise RuntimeError("Downloaded corpus checksum does not match latest.json.")
+    print(f"Restored Hebrew corpus from Drive: {latest.get('corpus_file_name', 'corpus.txt')}")
+
+
 def download_checkpoint():
     session = drive_session()
     latest = load_latest(session)
@@ -211,11 +267,19 @@ def upload_model():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["download-checkpoint", "upload-checkpoint", "upload-model", "upload-corpus", "download-corpus"])
+    parser.add_argument("command", choices=[
+        "download-checkpoint", "upload-checkpoint", "upload-model",
+        "upload-corpus", "download-corpus",
+    ])
     args = parser.parse_args()
-    {"download-checkpoint": download_checkpoint,
-     "upload-checkpoint": upload_checkpoint,
-     "upload-model": upload_model,\n     "upload-corpus": upload_corpus,\n     "download-corpus": download_corpus}[args.command]()
+    commands = {
+        "download-checkpoint": download_checkpoint,
+        "upload-checkpoint": upload_checkpoint,
+        "upload-model": upload_model,
+        "upload-corpus": upload_corpus,
+        "download-corpus": download_corpus,
+    }
+    commands[args.command]()
 
 
 if __name__ == "__main__":
