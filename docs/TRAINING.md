@@ -7,9 +7,10 @@
 | ci.yml | push, pull request, manual | compile package, install dependencies, run tests | test result |
 | smoke-train.yml | model-code changes or manual | synthetic CPU training check | smoke checkpoint and metrics |
 | pretrain.yml | manual or dashboard | restore Drive checkpoint, add training steps, export GGUF | versioned Drive files plus 14-day Actions artifact |
-| train.yml | manual from dashboard | inspect a public source and produce a provenance report | intake report only |
+| train.yml | dashboard | crawl a public source and build a Hebrew corpus | versioned corpus and provenance in Drive |
+| ingest-text.yml | dashboard | ingest pasted Hebrew text | corpus and provenance in Drive |
 
-The source-intake workflow and pretraining workflow are separate. Source intake now extracts bounded text from a public GitHub repository or one public web page, filters for Hebrew text, deduplicates documents, creates a corpus candidate and provenance manifest, and uploads both to Google Drive. It does not start training automatically. Review the source rights and corpus before dispatching pretraining.
+The dashboard is a single control center for adding text, crawling sources, starting training, and reviewing workflow runs. Users can paste up to 40,000 characters per ingestion run or load a local TXT file. Public website intake crawls up to 12 same-host pages (depth 2); public GitHub intake extracts supported TXT/Markdown/RST/HTML files. Intake filters for Hebrew, deduplicates documents, writes a corpus and provenance manifest, and uploads them to Drive. Ingestion and pretraining remain separate actions so the user can review source rights before training.
 
 ## Incremental training
 
@@ -113,7 +114,7 @@ The text in data/smoke/hebrew_sample.txt is synthetic test material only, not a 
 6. It trains, saves a new checkpoint, exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to the module-version folder.
 7. GitHub Actions also stores a secondary 14-day copy.
 
-The source-intake process creates a corpus candidate; it does not certify copyright or usage rights. Only use sources for which you have explicit authorization. A short CPU run is an engineering experiment, not meaningful pretraining. The hosted workflow uses CPU and does not promise free GPU training.
+The source-intake process creates a corpus candidate; it does not certify copyright or usage rights. Only use sources for which you have explicit authorization. Dashboard paste intake is limited to 40,000 characters per run; multiple batches can be added. Each ingestion updates the latest-corpus pointer. The current model is a small from-scratch Transformer prototype with a UTF-8 byte tokenizer. A short CPU run is an engineering experiment, not meaningful pretraining. The hosted workflow uses CPU and does not promise free GPU training.
 
 ## GGUF conversion status
 
