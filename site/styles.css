@@ -11,3 +11,5 @@
 #text-submit-btn b{font-size:18px}
 #text-message{font-size:12px;line-height:1.6;color:var(--green);min-height:17px;margin:9px 0 0}
 #text-message.error{color:#b33d36}
+
+#chat-message{font-size:12px;line-height:1.6;color:var(--green);min-height:17px;margin:9px 0 0}#chat-message.error{color:#b33d36}.chat-panel{margin-top:17px}
