@@ -50,6 +50,8 @@ def train(corpus_path, output_dir, model_config=None, train_config=None,
     if device_name.startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is not available.")
     device = torch.device(device_name)
+    random.seed(train_config.seed)
+    torch.manual_seed(train_config.seed)
     text = read_corpus(corpus_path)
     corpus_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     tokenizer = ByteTokenizer()
