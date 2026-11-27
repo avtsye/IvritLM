@@ -1,0 +1,72 @@
+name: IvritLM - Add text from dashboard
+
+on:
+  workflow_dispatch:
+    inputs:
+      text_content:
+        description: Hebrew text pasted in the dashboard (maximum 40000 characters)
+        required: true
+        type: string
+      license_ack:
+        description: Confirm you have rights to use this text for model training
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ivritlm-source-intake
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ingestion and Drive dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-intake.txt
+          python -m pip install --disable-pip-version-check -r requirements-drive.txt
+      - name: Validate authorization and Drive secrets
+        env:
+          LICENSE_ACK: ${{ inputs.license_ack }}
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          if os.environ.get("LICENSE_ACK") != "yes":
+              raise SystemExit("Confirm that you have permission to use this text for training.")
+          names = ["DRIVE_CLIENT_ID", "DRIVE_CLIENT_SECRET", "DRIVE_REFRESH_TOKEN", "DRIVE_FOLDER_ID"]
+          missing = [name for name in names if not os.environ.get(name)]
+          if missing:
+              raise SystemExit("Configure Google Drive repository secrets: " + ", ".join(missing))
+          PY
+      - name: Build Hebrew corpus from pasted text
+        env:
+          TEXT_CONTENT: ${{ inputs.text_content }}
+        run: python scripts/ingest_text.py
+      - name: Upload corpus and manifest to Google Drive
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py upload-corpus
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ivritlm-pasted-text-${{ github.run_id }}
+          path: artifacts/source-intake/
+          retention-days: 14
