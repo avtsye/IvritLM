@@ -160,7 +160,7 @@ def download_checkpoint():
         return False
     target = Path("artifacts/pretraining/checkpoint.pt")
     download_file(session, file_id, target)
-    print(f"Restored checkpoint from Drive: {latest.get('checkpoint_name', 'checkpoint')} (IvritLM {latest.get('module_version', 'unknown')})")
+    print(f"Restored checkpoint from Drive: {latest.get('checkpoint_name', 'checkpoint')} (IvritLM {latest.get('checkpoint_module_version', 'unknown')})")
     return True
 
 
@@ -175,7 +175,8 @@ def upload_checkpoint():
     name = f"checkpoint-step-{step:012d}.pt"
     uploaded = upload_file(session, checkpoint, name, parent_id=version_folder)
     latest = load_latest(session)
-    latest.update({"module_version": __version__, "version_folder_id": version_folder,
+    latest.update({"module_version": __version__, "checkpoint_module_version": __version__,
+                   "checkpoint_version_folder_id": version_folder,
                    "checkpoint_file_id": uploaded["id"], "checkpoint_name": name,
                    "checkpoint_global_step": step, "updated_by": "IvritLM GitHub Actions"})
     for filename, prefix in [("tokenizer.json", "tokenizer"), ("run-manifest.json", "manifest")]:
@@ -200,7 +201,8 @@ def upload_model():
     uploaded = upload_file(session, model_path, name, parent_id=version_folder)
     upload_file(session, metrics_path, f"metrics-step-{step:012d}.json", parent_id=version_folder)
     latest = load_latest(session)
-    latest.update({"module_version": __version__, "version_folder_id": version_folder,
+    latest.update({"model_module_version": __version__,
+                   "model_version_folder_id": version_folder,
                    "model_file_id": uploaded["id"], "model_name": name,
                    "model_global_step": step})
     save_latest(session, latest)
