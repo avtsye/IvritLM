@@ -182,16 +182,24 @@
       say("יש לאשר את שתי הצהרות המקור.", true);
       return;
     }
+    const autoSteps = Number($("source-training-steps").value);
+    const autoBatch = Number($("source-batch-size").value);
+    if (!Number.isInteger(autoSteps) || autoSteps < 1 || autoSteps > 1000) {
+      say("צעדי האימון האוטומטי חייבים להיות בין 1 ל־1,000.", true); return;
+    }
+    if (!Number.isInteger(autoBatch) || autoBatch < 1 || autoBatch > 16) {
+      say("Batch size חייב להיות בין 1 ל־16.", true); return;
+    }
     submit.disabled = true;
     submit.querySelector("span").textContent = "שולח ל־GitHub…";
     try {
-      await dispatchWorkflow(SOURCE_WORKFLOW, {source_url:source.url,source_kind:source.kind,license_ack:"yes"});
-      say("הבקשה התקבלה. המערכת תנסה לבנות קורפוס עברי ולשמור אותו ב-Google Drive. לאחר מכן אפשר להפעיל אימון.");
+      await dispatchWorkflow(SOURCE_WORKFLOW, {source_url:source.url,source_kind:source.kind,license_ack:"yes",training_steps:String(autoSteps),batch_size:String(autoBatch)});
+      say("הסריקה התקבלה. לאחר איסוף הטקסטים, סינון, שמירת הקורפוס ב־Google Drive, האימון יתחיל אוטומטית. אפשר לעקוב באזור הריצות.");
       setTimeout(loadRuns, 2500);
     } catch (e) { say(e.message, true); }
     finally {
       submit.disabled = false;
-      submit.querySelector("span").textContent = "הפעלת בדיקת מקור";
+      submit.querySelector("span").textContent = "סריקה והתחלת אימון אוטומטית";
     }
   });
 
