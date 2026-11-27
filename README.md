@@ -27,7 +27,7 @@ The actual trained weights are not committed to this Git repository and are not 
 
 ## One-time Google Drive setup
 
-See docs/TRAINING.md. The workflow uses a Google OAuth refresh token stored as GitHub Actions secrets; credentials are never committed to this repository.
+See [the Hebrew setup guide](docs/TRAINING.he.md) or [the English guide](docs/TRAINING.md). The workflow uses a Google OAuth refresh token stored as GitHub Actions secrets; credentials are never committed to this repository.
 
 ## Start a small training run
 
