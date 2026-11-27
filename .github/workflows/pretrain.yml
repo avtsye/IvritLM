@@ -110,12 +110,18 @@ jobs:
           BATCH_SIZE: ${{ inputs.batch_size }}
         run: |
           if [ -z "$CORPUS_PATH" ]; then CORPUS_PATH="artifacts/pretraining/corpus.txt"; fi
+          RESUME_ARGS=()
+          if [ -f artifacts/pretraining/checkpoint.pt ]; then
+            RESUME_ARGS=(--resume artifacts/pretraining/checkpoint.pt)
+          else
+            echo "No prior checkpoint exists; starting from randomly initialized weights."
+          fi
           python scripts/train.py \
             --corpus "$CORPUS_PATH" \
             --steps "$STEPS" \
             --batch-size "$BATCH_SIZE" \
             --output artifacts/pretraining \
-            --resume artifacts/pretraining/checkpoint.pt
+            "${RESUME_ARGS[@]}"
 
       - name: Persist the new checkpoint to Google Drive
         env:
