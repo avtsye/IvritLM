@@ -6,10 +6,10 @@
 |---|---|---|---|
 | ci.yml | push, pull request, manual | compile package, install dependencies, run tests | test result |
 | smoke-train.yml | model-code changes or manual | synthetic CPU training check | smoke checkpoint and metrics |
-| pretrain.yml | manual only | restore Drive checkpoint, add training steps, export GGUF | versioned Drive files plus 14-day Actions artifact |
+| pretrain.yml | manual or dashboard | restore Drive checkpoint, add training steps, export GGUF | versioned Drive files plus 14-day Actions artifact |
 | train.yml | manual from dashboard | inspect a public source and produce a provenance report | intake report only |
 
-The source-intake workflow and pretraining workflow are separate. The dashboard does not yet dispatch incremental pretraining.
+The source-intake workflow and pretraining workflow are separate. The dashboard can dispatch either workflow: source inspection or incremental training.
 
 ## Incremental training
 
@@ -67,7 +67,7 @@ The hosted workflow accepts only a .txt corpus committed inside this public repo
 
 1. Complete the one-time Drive setup.
 2. Add an approved UTF-8 corpus, for example data/corpus/train.txt.
-3. Open GitHub → Actions → IvritLM - Incremental Pretraining and GGUF Export → Run workflow.
+3. Open the training dashboard, enter your GitHub token, and use the incremental-training section; alternatively open GitHub → Actions → IvritLM - Incremental Pretraining and GGUF Export → Run workflow.
 4. Supply the repository-relative corpus path, 1–1,000 additional steps, and batch size 1–16.
 5. The workflow downloads the latest Drive checkpoint (or starts from random weights if the folder has no checkpoint), performs additional updates, and uploads a new checkpoint version.
 6. It exports to a GPT-2-compatible intermediate format, converts with the pinned llama.cpp revision, validates the GGUF header, and uploads GGUF and metrics to Drive.
