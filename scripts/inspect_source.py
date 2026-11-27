@@ -84,8 +84,11 @@ def bounded_get(url: str) -> requests.Response:
     raise ValueError("Too many redirects.")
 
 
-def clean_text(raw: bytes, suffix: str = ".txt") -> str:
-    text = raw.decode("utf-8-sig", errors="replace")
+def clean_text(raw: bytes, suffix: str = ".txt", encoding: str = "utf-8-sig") -> str:
+    try:
+        text = raw.decode(encoding, errors="replace")
+    except LookupError:
+        text = raw.decode("utf-8-sig", errors="replace")
     if suffix in {".html", ".htm"}:
         soup = BeautifulSoup(text, "html.parser")
         for node in soup(["script", "style", "noscript", "svg", "nav", "footer", "header"]):
