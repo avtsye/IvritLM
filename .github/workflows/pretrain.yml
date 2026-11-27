@@ -1,4 +1,4 @@
-name: IvritLM - Pretraining
+name: IvritLM - Incremental Pretraining and GGUF Export
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       steps:
-        description: Number of optimizer steps (bounded CPU experiment)
+        description: Additional optimizer steps for this run (hosted CPU limit)
         required: true
         default: "100"
         type: string
@@ -22,22 +22,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: ivritlm-pretraining
+  group: ivritlm-incremental-training
   cancel-in-progress: false
 
 jobs:
   pretrain:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout IvritLM
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned llama.cpp converter
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: 15fcfc7357f8de73671d39e7d8c594e1beb3052d
+          path: llama.cpp
+          persist-credentials: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install model dependencies
+
+      - name: Install IvritLM dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-model.txt
-      - name: Validate bounded run settings and corpus path
+
+      - name: Install GGUF conversion dependencies
+        run: python -m pip install --disable-pip-version-check "gguf>=0.1.0" "transformers==4.57.6" "sentencepiece>=0.1.98,<0.3.0" "protobuf>=4.21.0,<5.0.0"
+
+      - name: Validate Drive configuration and run settings
         env:
+          DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.DRIVE_SERVICE_ACCOUNT_JSON }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
           CORPUS_PATH: ${{ inputs.corpus_path }}
           STEPS: ${{ inputs.steps }}
           BATCH_SIZE: ${{ inputs.batch_size }}
@@ -45,6 +62,8 @@ jobs:
           python - <<'PY'
           import os
           from pathlib import Path
+          if not os.environ.get("DRIVE_SERVICE_ACCOUNT_JSON") or not os.environ.get("DRIVE_FOLDER_ID"):
+              raise SystemExit("Configure DRIVE_SERVICE_ACCOUNT_JSON and DRIVE_FOLDER_ID repository secrets before training.")
           steps = int(os.environ["STEPS"])
           batch = int(os.environ["BATCH_SIZE"])
           path = Path(os.environ["CORPUS_PATH"]).resolve()
@@ -55,18 +74,67 @@ jobs:
               raise SystemExit("batch_size must be between 1 and 16")
           if root not in path.parents or path.suffix.lower() != ".txt" or not path.is_file():
               raise SystemExit("corpus_path must point to an existing .txt file inside the repository")
-          print(f"Using approved-corpus path: {path.relative_to(root)}")
+          print(f"Validated corpus path: {path.relative_to(root)}")
           PY
-      - name: Train from random initialization
+
+      - name: Restore the latest checkpoint from Google Drive
+        env:
+          DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.DRIVE_SERVICE_ACCOUNT_JSON }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py download-checkpoint
+
+      - name: Continue training from the previous weights and optimizer state
         env:
           CORPUS_PATH: ${{ inputs.corpus_path }}
           STEPS: ${{ inputs.steps }}
           BATCH_SIZE: ${{ inputs.batch_size }}
-        run: python scripts/train.py --corpus "$CORPUS_PATH" --steps "$STEPS" --batch-size "$BATCH_SIZE" --output artifacts/pretraining
-      - name: Upload checkpoint and metrics
+        run: |
+          python scripts/train.py \
+            --corpus "$CORPUS_PATH" \
+            --steps "$STEPS" \
+            --batch-size "$BATCH_SIZE" \
+            --output artifacts/pretraining \
+            --resume artifacts/pretraining/checkpoint.pt
+
+      - name: Persist the new checkpoint to Google Drive
+        env:
+          DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.DRIVE_SERVICE_ACCOUNT_JSON }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py upload-checkpoint
+
+      - name: Export checkpoint to Hugging Face GPT-2-compatible format
+        run: python scripts/export_hf.py --checkpoint artifacts/pretraining/checkpoint.pt --output artifacts/hf-export
+
+      - name: Convert model to GGUF
+        run: |
+          python llama.cpp/convert_hf_to_gguf.py artifacts/hf-export \
+            --outfile artifacts/pretraining/model.gguf \
+            --outtype f16
+          python - <<'PY'
+          from pathlib import Path
+          model = Path("artifacts/pretraining/model.gguf")
+          if not model.is_file() or model.stat().st_size < 1024:
+              raise SystemExit("GGUF output is missing or unexpectedly small")
+          if model.open("rb").read(4) != b"GGUF":
+              raise SystemExit("Output file does not have the GGUF magic header")
+          print(f"GGUF validated: {model.stat().st_size} bytes")
+          PY
+
+      - name: Upload GGUF model and metrics to Google Drive
+        env:
+          DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.DRIVE_SERVICE_ACCOUNT_JSON }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scripts/drive_storage.py upload-model
+
+      - name: Upload run artifacts to GitHub Actions as a secondary copy
         uses: actions/upload-artifact@v4
         with:
-          name: ivritlm-checkpoint-${{ github.run_id }}
-          path: artifacts/pretraining/
+          name: ivritlm-run-${{ github.run_id }}
+          path: |
+            artifacts/pretraining/checkpoint.pt
+            artifacts/pretraining/model.gguf
+            artifacts/pretraining/tokenizer.json
+            artifacts/pretraining/metrics.json
+            artifacts/pretraining/run-manifest.json
           if-no-files-found: error
           retention-days: 14
