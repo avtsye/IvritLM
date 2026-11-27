@@ -1,10 +1,22 @@
 <!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="IvritLM training dashboard"><title>IvritLM · ניהול אימונים</title><link rel="stylesheet" href="./styles.css"></head>
 <body>
-<header class="top"><a class="brand" href="./"><b>א</b><span><strong>IvritLM</strong><small>Hebrew Language Model</small></span></a><nav><a class="active" href="./">ניהול אימונים</a><a href="https://github.com/avtsye/IvritLM" target="_blank" rel="noreferrer">המאגר ↗</a><a href="https://github.com/avtsye/IvritLM/actions" target="_blank" rel="noreferrer">ריצות Actions ↗</a></nav></header>
+<header class="top"><a class="brand" href="./"><b>א</b><span><strong>IvritLM</strong><small>Hebrew Language Model</small></span></a><nav><a class="active" href="./">ניהול אימונים</a><a href="https://github.com/avtsye/IvritLM" target="_blank" rel="noreferrer">המאגר ↗</a><a href="https://github.com/avtsye/IvritLM/actions" target="_blank" rel="noreferrer">ריצות Actions ↗</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.he.md">עברית</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">English</a></nav></header>
 <main class="wrap">
 <section class="intro"><div><p class="eyebrow">TRAINING CONTROL CENTER</p><h1>ניהול אימונים</h1><p>בדיקת מקורות נתונים והפעלת אימונים מבוקרים באמצעות GitHub Actions.</p></div><span class="pill">● סביבת פיתוח</span></section>
 <section class="notice"><b>מצב נוכחי: אימון מתמשך וייצוא GGUF</b><p>אפשר להמשיך אימון קודם ולשמור תוצרים בתיקיית גרסת המודול המתאימה ב־Google Drive. בדיקת מקור יוצרת דוח מקור בלבד; היא עדיין אינה מוסיפה את תוכן המקור לקורפוס האימון. לפני אימון יש להגדיר את חיבור Drive ואת סודות המאגר לפי המדריך.</p></section>
+<section class="panel quick-guide">
+<div class="head"><div><p class="eyebrow">QUICK START / מדריך מהיר</p><h2>מתחילים בחמש פעולות</h2></div><small>מדריך</small></div>
+<ol>
+<li><b>מחברים את Google Drive פעם אחת:</b> מריצים <code>python scripts/google_drive_auth.py</code> ובוחרים בחלון את קובץ ה-OAuth מסוג Desktop app.</li>
+<li><b>מגדירים ארבעה GitHub Secrets:</b> מעתיקים את DRIVE_CLIENT_ID, DRIVE_CLIENT_SECRET, DRIVE_REFRESH_TOKEN ו-DRIVE_FOLDER_ID למסך Secrets של המאגר.</li>
+<li><b>יוצרים GitHub Token:</b> הרשאת Actions Read and write למאגר IvritLM בלבד, ומדביקים אותו בשדה GitHub token.</li>
+<li><b>מכינים קורפוס:</b> מעלים למאגר קובץ TXT בקידוד UTF-8 שיש הרשאה להשתמש בו לאימון.</li>
+<li><b>מפעילים אימון:</b> מזינים את נתיב הקובץ, צעדים ו-Batch size ולוחצים על הפעלת אימון והפקת GGUF.</li>
+</ol>
+<div class="guide-links"><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.he.md">המדריך המלא בעברית ↗</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">Full guide in English ↗</a></div>
+<p class="hint">נתקעת? אם קיבלת שגיאה בבחירת קובץ Google, אל תבחר token.json. צריך את קובץ ה-OAuth שהורדת מ-Google Cloud ושמו בדרך כלל מתחיל ב-client_secret_.</p>
+</section>
 <div class="grid">
 <section class="panel"><div class="head"><div><p class="eyebrow">01 / DATA SOURCE</p><h2>מקור נתונים חדש</h2></div><small>01</small></div>
 <form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או עמוד HTTPS ציבורי.</p>
