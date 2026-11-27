@@ -1,4 +1,4 @@
-name: IvritLM - CPU training smoke test
+name: IvritLM - CPU training and GGUF smoke test
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - "ivritlm/**"
       - "tests/**"
       - "scripts/smoke_train.py"
+      - "scripts/export_hf.py"
       - ".github/workflows/smoke-train.yml"
   workflow_dispatch:
 
@@ -15,22 +16,62 @@ permissions:
 jobs:
   smoke-train:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout IvritLM
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned llama.cpp converter
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: 15fcfc7357f8de73671d39e7d8c594e1beb3052d
+          path: llama.cpp
+          persist-credentials: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install model test dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements-model.txt
-      - name: Run model unit tests
+
+      - name: Install model and conversion dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-model.txt
+          python -m pip install --disable-pip-version-check "gguf>=0.1.0" "transformers==4.57.6" "sentencepiece>=0.1.98,<0.3.0" "protobuf>=4.21.0,<5.0.0"
+
+      - name: Run model unit and incremental-resume tests
         run: python -m pytest -q
+
       - name: Run end-to-end CPU smoke training
         run: python scripts/smoke_train.py
-      - name: Upload smoke checkpoint and metrics
+
+      - name: Export synthetic checkpoint to GGUF
+        run: |
+          mkdir -p artifacts/pretraining
+          cp artifacts/smoke/checkpoint.pt artifacts/pretraining/checkpoint.pt
+          cp artifacts/smoke/tokenizer.json artifacts/pretraining/tokenizer.json
+          cp artifacts/smoke/metrics.json artifacts/pretraining/metrics.json
+          python scripts/export_hf.py --checkpoint artifacts/pretraining/checkpoint.pt --output artifacts/hf-export
+          python llama.cpp/convert_hf_to_gguf.py artifacts/hf-export \
+            --outfile artifacts/pretraining/model.gguf \
+            --outtype f16
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("artifacts/pretraining/model.gguf")
+          if not path.is_file() or path.stat().st_size < 1024:
+              raise SystemExit("GGUF output is missing or unexpectedly small")
+          if path.open("rb").read(4) != b"GGUF":
+              raise SystemExit("Output file does not have the GGUF magic header")
+          print(f"GGUF smoke export passed: {path.stat().st_size} bytes")
+          PY
+
+      - name: Upload smoke checkpoint, metrics and GGUF
         uses: actions/upload-artifact@v4
         with:
-          name: ivritlm-smoke-checkpoint-${{ github.run_id }}
-          path: artifacts/smoke/
+          name: ivritlm-smoke-gguf-${{ github.run_id }}
+          path: |
+            artifacts/pretraining/checkpoint.pt
+            artifacts/pretraining/tokenizer.json
+            artifacts/pretraining/metrics.json
+            artifacts/pretraining/model.gguf
           if-no-files-found: error
           retention-days: 7
