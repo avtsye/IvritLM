@@ -4,7 +4,7 @@
 <header class="top"><a class="brand" href="./"><b>א</b><span><strong>IvritLM</strong><small>Hebrew Language Model</small></span></a><nav><a class="active" href="./">ניהול אימונים</a><a href="https://github.com/avtsye/IvritLM" target="_blank" rel="noreferrer">המאגר ↗</a><a href="https://github.com/avtsye/IvritLM/actions" target="_blank" rel="noreferrer">ריצות Actions ↗</a></nav></header>
 <main class="wrap">
 <section class="intro"><div><p class="eyebrow">TRAINING CONTROL CENTER</p><h1>ניהול אימונים</h1><p>קליטת מקורות נתונים והפעלת תהליכים מבוקרים באמצעות GitHub Actions.</p></div><span class="pill">● סביבת פיתוח</span></section>
-<section class="notice"><b>מצב נוכחי: קליטת מקורות בלבד</b><p>הממשק מפעיל Workflow ומציג ריצות. בשלב זה ה־Workflow מאמת מקור ומפיק דוח קליטה בלבד. אימון משקולות המודל יופעל לאחר שילוב מנוע האימון; אין כאן עדיין אימון מודל בפועל.</p></section>
+<section class="notice"><b>מצב נוכחי: אימון מתמשך וייצוא GGUF</b><p>אפשר לבדוק מקורות ולהפעיל אימון נוסף על checkpoint קודם. כל ריצה ממשיכה את המשקולות ואת מצב האופטימייזר ושומרת גרסה חדשה ב־Google Drive. לפני האימון הראשון יש להגדיר את הרשאות Drive ואת סודות המאגר לפי מדריך האימון.</p></section>
 <div class="grid">
 <section class="panel"><div class="head"><div><p class="eyebrow">01 / DATA SOURCE</p><h2>מקור נתונים חדש</h2></div><small>01</small></div>
 <form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או עמוד HTTPS ציבורי.</p>
@@ -18,6 +18,11 @@
 <p class="hint">האסימון נשמר בזיכרון הדף בלבד. הוא אינו נשמר בדפדפן או במאגר. ניתן לנקות אותו או לסגור את הלשונית.</p>
 <div class="token-actions"><button type="button" id="clear-token" class="secondary">ניקוי אסימון</button><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">יצירת אסימון ↗</a></div>
 <div class="permissions"><b>הרשאות נדרשות</b><ul><li>גישה למאגר IvritLM בלבד</li><li>Actions: Read and write</li><li>Metadata: Read-only (ברירת מחדל)</li></ul></div></aside></div>
-<section class="panel runs"><div class="head"><div><p class="eyebrow">03 / ACTIVITY</p><h2>ריצות אחרונות</h2></div><button id="refresh-runs" class="secondary" type="button">רענון ↻</button></div><div id="runs"><p class="empty">הזן אסימון GitHub ולחץ על רענון כדי להציג ריצות.</p></div></section>
+<section class="panel pretrain"><div class="head"><div><p class="eyebrow">02 / MODEL TRAINING</p><h2>הפעלת אימון מתמשך</h2></div><small>02</small></div>
+<form id="pretrain-form"><label for="corpus-path">נתיב לקובץ קורפוס מאושר במאגר</label><input id="corpus-path" type="text" placeholder="data/corpus/train.txt" required><p class="hint">הקובץ חייב להיות קובץ TXT בקידוד UTF-8 שכבר הועלה למאגר. המאגר ציבורי, ולכן תוכנו יהיה גלוי לציבור.</p>
+<div class="training-fields"><div><label for="training-steps">צעדי אימון נוספים</label><input id="training-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="batch-size">Batch size</label><input id="batch-size" type="number" min="1" max="16" value="4" required></div></div>
+<p class="hint">האימון ימשיך מה־checkpoint האחרון ב־Drive. בסיום תישמר גרסת checkpoint חדשה וייוצר קובץ GGUF. נדרשים סודות Google Drive המפורטים במדריך.</p>
+<button id="pretrain-btn" type="submit"><span>הפעלת אימון והפקת GGUF</span><b>←</b></button><p id="pretrain-message" role="status"></p></form></section>
+<section class="panel runs"><div class="head"><div><p class="eyebrow">04 / ACTIVITY</p><h2>ריצות אחרונות</h2></div><button id="refresh-runs" class="secondary" type="button">רענון ↻</button></div><div id="runs"><p class="empty">הזן אסימון GitHub ולחץ על רענון כדי להציג ריצות.</p></div></section>
 <footer><span>IvritLM · Hebrew language model research</span><span><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">מדריך אימון</a> · <a href="https://github.com/avtsye/IvritLM/blob/main/docs/DATA_POLICY.md">מדיניות נתונים</a></span></footer>
 </main><script src="./app.js" defer></script></body></html>
