@@ -13,6 +13,10 @@ import re
 import socket
 import sys
 import zipfile
+import gzip
+import time
+import xml.etree.ElementTree as ET
+from urllib.robotparser import RobotFileParser
 from datetime import datetime, timezone
 from collections import deque
 from pathlib import Path
@@ -25,7 +29,12 @@ from charset_normalizer import from_bytes
 MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
 MAX_ARCHIVE_FILES = 500
 MAX_FILE_BYTES = 2 * 1024 * 1024
-MAX_CORPUS_BYTES = 5 * 1024 * 1024
+MAX_CORPUS_BYTES = 50 * 1024 * 1024
+MAX_CRAWL_PAGES = 500
+MAX_CRAWL_DEPTH = 8
+MAX_TOTAL_CRAWL_BYTES = 100 * 1024 * 1024
+MAX_SITEMAP_URLS = 20000
+CRAWL_DELAY_SECONDS = 0.2
 ALLOWED_TEXT_SUFFIXES = {".txt", ".md", ".rst", ".html", ".htm"}
 USER_AGENT = "IvritLM-SourceInspector/0.2 (+https://github.com/avtsye/IvritLM)"
 HEBREW_RE = re.compile(r"[\u0590-\u05ff]")
@@ -213,25 +222,131 @@ def inspect_github(url: str) -> tuple[dict, list[tuple[str, str]]]:
     return report, docs
 
 
+def normalize_page_url(url: str, base: str) -> str | None:
+    target = urljoin(base, url)
+    parsed = urlparse(target)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return None
+    if parsed.username or parsed.password or parsed.query:
+        return None
+    if parsed.hostname.lower() != urlparse(base).hostname.lower():
+        return None
+    path = parsed.path or "/"
+    # Avoid fetching obvious non-page assets and actions.
+    if Path(path).suffix.lower() in {
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".ico", ".css", ".js",
+        ".pdf", ".zip", ".gz", ".mp3", ".mp4", ".woff", ".woff2", ".ttf",
+    }:
+        return None
+    return parsed._replace(path=path, fragment="").geturl()
+
+
+def load_robots(start: str) -> tuple[RobotFileParser, list[str]]:
+    parsed = urlparse(start)
+    robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+    parser = RobotFileParser()
+    parser.set_url(robots_url)
+    sitemap_urls: list[str] = []
+    try:
+        response = bounded_get(robots_url)
+        body = response._ivritlm_body.decode("utf-8-sig", errors="replace")
+        parser.parse(body.splitlines())
+        sitemap_urls = parser.site_maps() or []
+    except requests.HTTPError as exc:
+        # A missing robots.txt is equivalent to no published crawl restrictions.
+        if getattr(exc.response, "status_code", None) in (404, 410):
+            parser.parse(["User-agent: *", "Allow: /"])
+        else:
+            parser.parse(["User-agent: *", "Disallow: /"])
+    except requests.RequestException:
+        parser.parse(["User-agent: *", "Disallow: /"])
+    return parser, sitemap_urls
+
+
+def discover_sitemap_urls(start: str, sitemap_urls: list[str]) -> list[str]:
+    parsed_start = urlparse(start)
+    candidates = list(sitemap_urls)
+    candidates.extend([
+        f"{parsed_start.scheme}://{parsed_start.netloc}/sitemap.xml",
+        f"{parsed_start.scheme}://{parsed_start.netloc}/sitemap_index.xml",
+    ])
+    seen_maps: set[str] = set()
+    discovered: list[str] = []
+    while candidates and len(seen_maps) < 100 and len(discovered) < MAX_SITEMAP_URLS:
+        sitemap_url = candidates.pop(0)
+        normalized = normalize_page_url(sitemap_url, start)
+        # Sitemap files have XML/GZ suffixes, so validate host and scheme separately.
+        parsed = urlparse(sitemap_url)
+        if (parsed.scheme != "https" or parsed.hostname != parsed_start.hostname
+                or parsed.username or parsed.password or sitemap_url in seen_maps):
+            continue
+        seen_maps.add(sitemap_url)
+        try:
+            response = bounded_get(sitemap_url)
+        except (requests.RequestException, ValueError):
+            continue
+        raw = response._ivritlm_body
+        if sitemap_url.lower().endswith(".gz"):
+            try:
+                raw = gzip.decompress(raw)
+            except OSError:
+                continue
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError:
+            continue
+        for element in root.iter():
+            if element.tag.rsplit("}", 1)[-1].lower() != "loc" or not element.text:
+                continue
+            loc = element.text.strip()
+            if loc.lower().endswith((".xml", ".xml.gz")) and len(candidates) < 100:
+                candidates.append(loc)
+            else:
+                page_url = normalize_page_url(loc, start)
+                if page_url and page_url not in discovered:
+                    discovered.append(page_url)
+                    if len(discovered) >= MAX_SITEMAP_URLS:
+                        break
+    return discovered
+
+
 def inspect_web(url: str) -> tuple[dict, list[tuple[str, str]]]:
-    """Crawl a bounded set of public pages on the same host."""
+    """Crawl a public website using its sitemap plus same-host internal links."""
     start = validate_public_https(url)
     host = urlparse(start).hostname
-    queue = deque([(start, 0)])
+    robots, sitemap_urls = load_robots(start)
+    sitemap_pages = discover_sitemap_urls(start, sitemap_urls)
+
+    queue = deque((page, 0) for page in sitemap_pages)
+    queue.appendleft((start, 0))
+    queued = {page for page, _ in queue}
     visited: set[str] = set()
     documents: list[tuple[str, str]] = []
     total_bytes = 0
     page_titles: list[str] = []
-    while queue and len(visited) < 12 and total_bytes < MAX_DOWNLOAD_BYTES:
+    blocked_by_robots = 0
+    failed_pages = 0
+    max_depth_reached = 0
+
+    while queue and len(visited) < MAX_CRAWL_PAGES and total_bytes < MAX_TOTAL_CRAWL_BYTES:
         current, depth = queue.popleft()
         if current in visited or urlparse(current).hostname != host:
             continue
+        if not robots.can_fetch(USER_AGENT, current):
+            blocked_by_robots += 1
+            continue
         visited.add(current)
-        response = bounded_get(current)
+        try:
+            response = bounded_get(current)
+        except (requests.RequestException, ValueError):
+            failed_pages += 1
+            continue
         content_type = response.headers.get("Content-Type", "").lower()
         if "text/html" not in content_type and "text/plain" not in content_type:
             continue
         raw = response._ivritlm_body
+        if total_bytes + len(raw) > MAX_TOTAL_CRAWL_BYTES:
+            break
         total_bytes += len(raw)
         detected = from_bytes(raw).best()
         encoding = detected.encoding if detected else (response.encoding or "utf-8-sig")
@@ -240,31 +355,46 @@ def inspect_web(url: str) -> tuple[dict, list[tuple[str, str]]]:
             title = soup.title.get_text(" ", strip=True) if soup.title else ""
             if title:
                 page_titles.append(title[:200])
-            if depth < 2:
+            if depth < MAX_CRAWL_DEPTH:
                 for anchor in soup.find_all("a", href=True):
-                    target = urljoin(response.url, anchor["href"]).split("#", 1)[0]
-                    parsed = urlparse(target)
-                    if parsed.scheme == "https" and parsed.hostname == host and not parsed.query and target not in visited:
+                    target = normalize_page_url(anchor["href"], response.url)
+                    if target and target not in visited and target not in queued:
                         queue.append((target, depth + 1))
+                        queued.add(target)
             text = clean_text(raw, ".html", encoding)
         else:
             text = clean_text(raw, ".txt", encoding)
         if text:
             documents.append((response.url, text))
+        max_depth_reached = max(max_depth_reached, depth)
+        # Be polite to the source host rather than issuing a burst of requests.
+        time.sleep(CRAWL_DELAY_SECONDS)
+
+    capped = bool(queue) and (
+        len(visited) >= MAX_CRAWL_PAGES or total_bytes >= MAX_TOTAL_CRAWL_BYTES
+    )
     if not documents:
-        raise ValueError("לא נמצאו דפי HTML או טקסט ציבוריים באתר.")
+        raise ValueError("לא נמצאו דפי HTML או טקסט ציבוריים מותרים לסריקה באתר.")
     report = {
         "source_type": "web_crawl",
         "canonical_url": start,
-        "page_titles": page_titles[:12],
+        "page_titles": page_titles[:100],
         "pages_visited": len(visited),
         "candidate_document_count": len(documents),
+        "sitemap_url_count": len(sitemap_pages),
         "downloaded_bytes": total_bytes,
-        "crawl_policy": "Same host only; maximum 12 pages; depth 2; public HTTPS only.",
+        "blocked_by_robots": blocked_by_robots,
+        "failed_pages": failed_pages,
+        "max_depth_reached": max_depth_reached,
+        "crawl_limit_reached": capped,
+        "crawl_policy": (
+            f"Same hostname only; sitemap plus internal links; maximum {MAX_CRAWL_PAGES} pages; "
+            f"depth {MAX_CRAWL_DEPTH}; total download {MAX_TOTAL_CRAWL_BYTES} bytes; "
+            "robots.txt respected; 0.2 second delay between pages."
+        ),
         "license_review_required": True,
     }
     return report, documents
-
 
 def main() -> int:
     url = os.environ.get("SOURCE_URL", "").strip()
