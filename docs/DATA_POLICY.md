@@ -50,3 +50,12 @@ Git should contain small manifests, scripts, and documentation—not large raw c
 ## Before adding a dataset
 
 A maintainer must answer: Where did it come from? What license or permission applies? Does that permission cover training and the intended distribution of weights? What personal or sensitive data might it contain? How can it be removed? If any answer is unclear, do not use the source yet.
+
+
+## Automated source-intake safeguards
+
+The source-intake workflow accepts one public HTTPS web page or a public GitHub repository archive. It does not execute repository code. It considers only TXT, Markdown, reStructuredText, and HTML files, applies size limits, extracts readable text, retains documents with a minimum Hebrew-character ratio, deduplicates by normalized-text SHA-256, and caps each corpus candidate at 5 MiB.
+
+These technical filters are not a legal review. The workflow's authorization checkbox is an explicit operator attestation, not proof of a license. A public GitHub repository may contain files with different rights; a repository-level SPDX license field does not necessarily cover every file or text. Review the actual content and its rights before training. Keep the generated corpus manifest with the source URL, date, hash, and extraction metadata.
+
+Corpus candidates are stored in Google Drive under `IvritLM Corpora`; the model checkpoints and exports remain under their module-version folders. A candidate is not automatically trained until a separate incremental-pretraining run is dispatched.
