@@ -1,38 +1,32 @@
 # Testing and evaluation
 
-## Test layers
+## Automated checks
 
-1. **Static checks:** formatting, linting, type checks, and configuration validation.
-2. **Unit tests:** tokenizer behavior, tensor shapes, causal attention masks, loss calculation, checkpoint serialization.
-3. **Integration tests:** tiny end-to-end training and inference using synthetic or explicitly approved miniature data.
-4. **Data checks:** encoding validity, duplicate rates, manifest completeness, split isolation, and Hebrew-script statistics.
-5. **Model evaluation:** held-out next-token loss/perplexity and a documented qualitative Hebrew test suite.
+- `python -m compileall -q ivritlm scripts tests` — syntax compilation.
+- `python -m pytest -q` — tokenizer and model unit tests.
+- `python scripts/smoke_train.py` — tiny end-to-end CPU training and checkpoint creation.
+- `node --check site/app.js` — dashboard JavaScript syntax.
 
-## Critical correctness checks
+CI installs the pinned dependencies and runs compilation, tests, and dashboard checks. The separate smoke-training workflow uploads its checkpoint and metrics as a seven-day artifact.
 
-- Causal attention must not expose future tokens.
-- Training and validation documents must not overlap.
-- Tokenizer training must use only the training corpus.
-- Padding and ignored labels must not contribute to loss.
-- Checkpoint resume must restore optimizer and scheduler state.
-- Inference must load the tokenizer associated with the checkpoint.
-- Tests must not download unknown corpora or model weights implicitly.
+## What the tests cover
 
-## Metrics
+- Hebrew UTF-8 byte-tokenizer round-trip and special token IDs.
+- Transformer output shape, finite next-token loss, and context-length rejection.
+- End-to-end optimizer update and checkpoint/metrics generation through the smoke workflow.
 
-Report validation loss and perplexity with the dataset version and tokenization details. Perplexity values are only meaningfully comparable when the evaluation data and tokenizer conventions are comparable.
+## What remains to test
 
-Qualitative examples should be sampled from a fixed, documented prompt set and reviewed for grammaticality, coherence, repetition, and factual reliability. Include failures, not only favorable samples.
+- Explicit causal-leakage regression test.
+- Checkpoint load/resume equivalence.
+- Train/validation/test document-level isolation.
+- Corpus manifest validation, deduplication, and normalization.
+- Evaluation and generation quality on a fixed held-out Hebrew test set.
+
+## Interpretation
+
+A passing smoke test proves that the code path executes and weights can be updated. It does not demonstrate Hebrew fluency, factual reliability, or usefulness. Synthetic smoke text is not an approved training corpus.
 
 ## Release gates
 
-A release candidate must have:
-
-- passing CI;
-- reproducible config and data metadata;
-- a verified checkpoint and checksum;
-- evaluation report;
-- documented known limitations;
-- license and provenance review for all distributed artifacts.
-
-A smoke test proves that the pipeline executes. It does not prove language competence.
+A release candidate needs passing CI, approved corpus provenance, reproducible configuration, verified checkpoint checksum, held-out evaluation report, known limitations, and license review for all distributed artifacts.
