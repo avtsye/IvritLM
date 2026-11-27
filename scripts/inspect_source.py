@@ -14,11 +14,13 @@ import socket
 import sys
 import zipfile
 from datetime import datetime, timezone
+from collections import deque
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from charset_normalizer import from_bytes
 
 MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
 MAX_ARCHIVE_FILES = 500
@@ -212,27 +214,56 @@ def inspect_github(url: str) -> tuple[dict, list[tuple[str, str]]]:
 
 
 def inspect_web(url: str) -> tuple[dict, list[tuple[str, str]]]:
-    response = bounded_get(url)
-    content_type = response.headers.get("Content-Type", "")
-    if "text/html" not in content_type and "text/plain" not in content_type:
-        raise ValueError(f"Unsupported content type: {content_type or 'unknown'}. Use HTML or plain text.")
-    raw = response._ivritlm_body
-    detected = from_bytes(raw).best()
-    encoding = detected.encoding if detected else (response.encoding or "utf-8-sig")
-    text = clean_text(raw, ".html" if "html" in content_type else ".txt", encoding)
-    title = ""
-    if "html" in content_type:
-        soup = BeautifulSoup(raw.decode(encoding, errors="replace"), "html.parser")
-        title = soup.title.get_text(" ", strip=True) if soup.title else ""
+    """Crawl a bounded set of public pages on the same host."""
+    start = validate_public_https(url)
+    host = urlparse(start).hostname
+    queue = deque([(start, 0)])
+    visited: set[str] = set()
+    documents: list[tuple[str, str]] = []
+    total_bytes = 0
+    page_titles: list[str] = []
+    while queue and len(visited) < 12 and total_bytes < MAX_DOWNLOAD_BYTES:
+        current, depth = queue.popleft()
+        if current in visited or urlparse(current).hostname != host:
+            continue
+        visited.add(current)
+        response = bounded_get(current)
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "text/html" not in content_type and "text/plain" not in content_type:
+            continue
+        raw = response._ivritlm_body
+        total_bytes += len(raw)
+        detected = from_bytes(raw).best()
+        encoding = detected.encoding if detected else (response.encoding or "utf-8-sig")
+        if "html" in content_type:
+            soup = BeautifulSoup(raw.decode(encoding, errors="replace"), "html.parser")
+            title = soup.title.get_text(" ", strip=True) if soup.title else ""
+            if title:
+                page_titles.append(title[:200])
+            if depth < 2:
+                for anchor in soup.find_all("a", href=True):
+                    target = urljoin(response.url, anchor["href"]).split("#", 1)[0]
+                    parsed = urlparse(target)
+                    if parsed.scheme == "https" and parsed.hostname == host and not parsed.query and target not in visited:
+                        queue.append((target, depth + 1))
+            text = clean_text(raw, ".html", encoding)
+        else:
+            text = clean_text(raw, ".txt", encoding)
+        if text:
+            documents.append((response.url, text))
+    if not documents:
+        raise ValueError("לא נמצאו דפי HTML או טקסט ציבוריים באתר.")
     report = {
-        "source_type": "web",
-        "canonical_url": response.url,
-        "page_title": title[:300],
-        "content_type": content_type,
-        "downloaded_bytes": len(raw),
+        "source_type": "web_crawl",
+        "canonical_url": start,
+        "page_titles": page_titles[:12],
+        "pages_visited": len(visited),
+        "candidate_document_count": len(documents),
+        "downloaded_bytes": total_bytes,
+        "crawl_policy": "Same host only; maximum 12 pages; depth 2; public HTTPS only.",
         "license_review_required": True,
     }
-    return report, [(response.url, text)]
+    return report, documents
 
 
 def main() -> int:
