@@ -51,6 +51,6 @@ Do not use data/smoke/hebrew_sample.txt as a real training corpus. It exists sol
 
 ## Limitations and next milestones
 
-The baseline still uses bytes rather than efficient subword tokens, and the hosted workflow is CPU-only and bounded. The GGUF bridge is an initial GPT-2-compatible export path; it is not a claim of runtime-validated compatibility until the conversion smoke test passes. The source-intake dashboard is still separate from the actual pretraining workflow. Corpus curation, tokenizer training, scheduler, evaluation, GPU training, and durable storage policy improvements remain future work.
+The baseline still uses bytes rather than efficient subword tokens, and the hosted workflow is CPU-only and bounded. The GGUF bridge is an initial GPT-2-compatible export path; it is not a claim of runtime-validated compatibility until the conversion smoke test passes. The dashboard can dispatch both source inspection and incremental pretraining; actual training still requires Drive secrets and an approved corpus file. Corpus curation, tokenizer training, scheduler, evaluation, GPU training, and durable storage policy improvements remain future work.
 
 Training from scratch is data- and compute-intensive. GitHub Actions is used for repeatable tests and bounded CPU experiments, not promised free GPU training. Code, dataset, and checkpoint licenses are separate questions.
