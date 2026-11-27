@@ -19,7 +19,7 @@
 </section>
 <div class="grid">
 <section class="panel"><div class="head"><div><p class="eyebrow">01 / DATA SOURCE</p><h2>מקור נתונים חדש</h2></div><small>01</small></div>
-<form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או אתר HTTPS ציבורי. בסריקת אתר: עד 25,000 עמודים ועומק 15 (בכפוף למפת האתר, לקישורים, ל-robots.txt ולמגבלות זמן/נפח). סריקת אתר מגלה כתובות מתוך sitemap.xml וקישורים פנימיים, עד 25,000 עמודים ובעומק 15, באותו מתחם בלבד; robots.txt מכובד. לאחר העלאת הקורפוס האימון יתחיל אוטומטית.</p>
+<form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או אתר HTTPS ציבורי. באתר: עד 25,000 עמודים ובעומק 15, תוך כיבוד robots.txt, מפת האתר ומגבלות זמן ונפח. לאחר שמירת הקורפוס ב־Google Drive האימון יתחיל אוטומטית.</p>
 <label for="source-kind">סוג המקור</label><select id="source-kind"><option value="auto">זיהוי אוטומטי</option><option value="github">מאגר GitHub ציבורי</option><option value="web">אתר שלם (מפת אתר וקישורים פנימיים)</option></select>
 <div class="training-fields"><div><label for="source-training-steps">צעדי אימון אוטומטיים לאחר האיסוף</label><input id="source-training-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="source-batch-size">Batch size</label><input id="source-batch-size" type="number" min="1" max="16" value="4" required></div></div>
 <p class="hint">לאחר שהסריקה תסתיים והקורפוס יישמר ב־Google Drive, תופעל ריצת האימון אוטומטית. אם הסריקה או שמירת הקורפוס ייכשלו, האימון לא יתחיל.</p>
