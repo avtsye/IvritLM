@@ -112,6 +112,64 @@
   });
   $("refresh-runs").addEventListener("click", loadRuns);
 
+  const textForm = $("text-form");
+  const textArea = $("training-text");
+  const textFile = $("text-file");
+  const textButton = $("text-submit-btn");
+  const textMessage = $("text-message");
+  function sayText(value, error = false) {
+    textMessage.textContent = value;
+    textMessage.classList.toggle("error", error);
+  }
+  textFile.addEventListener("change", async () => {
+    const file = textFile.files && textFile.files[0];
+    if (!file) return;
+    if (!/\\.txt$/i.test(file.name) && file.type !== "text/plain") {
+      sayText("יש לבחור קובץ TXT בלבד.", true); textFile.value = ""; return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      sayText("הקובץ גדול מ־5 MiB. יש לבחור קובץ קטן יותר.", true); textFile.value = ""; return;
+    }
+    try {
+      const content = await file.text();
+      if (content.length > 40000) {
+        textArea.value = content.slice(0, 40000);
+        sayText("הקובץ נטען חלקית: מגבלת ההזנה הישירה היא 40,000 תווים.", true);
+      } else {
+        textArea.value = content;
+        sayText("הקובץ נטען. אפשר לבדוק את הטקסט ולשמור אותו במאגר.");
+      }
+    } catch {
+      sayText("לא ניתן לקרוא את הקובץ. יש לוודא שהוא קובץ טקסט UTF-8.", true);
+    }
+  });
+  textForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    sayText("");
+    token = $("github-token").value.trim();
+    if (!token) { sayText("יש להזין תחילה אסימון GitHub.", true); return; }
+    const content = textArea.value.trim();
+    if (content.length < 100) { sayText("יש להזין לפחות 100 תווים.", true); return; }
+    if (content.length > 40000) { sayText("מגבלת ההזנה היא 40,000 תווים לריצה.", true); return; }
+    if (!$("text-license-ack").checked) {
+      sayText("יש לאשר שיש לך הרשאה להשתמש בטקסט לאימון.", true); return;
+    }
+    textButton.disabled = true;
+    textButton.querySelector("span").textContent = "שומר ב־Google Drive…";
+    try {
+      await dispatchWorkflow("ingest-text.yml", {text_content:content, license_ack:"yes"});
+      sayText("הטקסט התקבל. המערכת בונה קורפוס עברי ושומרת אותו ב־Google Drive. לאחר מכן אפשר להפעיל אימון.");
+      textArea.value = "";
+      textFile.value = "";
+      $("text-license-ack").checked = false;
+      setTimeout(loadRuns, 2500);
+    } catch (e) { sayText(e.message, true); }
+    finally {
+      textButton.disabled = false;
+      textButton.querySelector("span").textContent = "שמירת הטקסט במאגר האימון";
+    }
+  });
+
   form.addEventListener("submit", async event => {
     event.preventDefault();
     say("");
