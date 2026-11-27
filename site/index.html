@@ -18,7 +18,7 @@
 <p class="hint">האסימון נשמר בזיכרון הדף בלבד. הוא אינו נשמר בדפדפן או במאגר. ניתן לנקות אותו או לסגור את הלשונית.</p>
 <div class="token-actions"><button type="button" id="clear-token" class="secondary">ניקוי אסימון</button><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">יצירת אסימון ↗</a></div>
 <div class="permissions"><b>הרשאות נדרשות</b><ul><li>גישה למאגר IvritLM בלבד</li><li>Actions: Read and write</li><li>Metadata: Read-only (ברירת מחדל)</li></ul></div></aside></div>
-<section class="panel pretrain"><div class="head"><div><p class="eyebrow">02 / MODEL TRAINING</p><h2>הפעלת אימון מתמשך</h2></div><small>02</small></div>
+<section class="panel pretrain"><div class="head"><div><p class="eyebrow">03 / MODEL TRAINING</p><h2>הפעלת אימון מתמשך</h2></div><small>02</small></div>
 <form id="pretrain-form"><label for="corpus-path">נתיב לקובץ קורפוס מאושר במאגר</label><input id="corpus-path" type="text" placeholder="data/corpus/train.txt" required><p class="hint">הקובץ חייב להיות קובץ TXT בקידוד UTF-8 שכבר הועלה למאגר. המאגר ציבורי, ולכן תוכנו יהיה גלוי לציבור.</p>
 <div class="training-fields"><div><label for="training-steps">צעדי אימון נוספים</label><input id="training-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="batch-size">Batch size</label><input id="batch-size" type="number" min="1" max="16" value="4" required></div></div>
 <p class="hint">האימון ימשיך מה־checkpoint האחרון ב־Drive. בסיום תישמר גרסת checkpoint חדשה וייוצר קובץ GGUF. נדרשים סודות Google Drive המפורטים במדריך.</p>
