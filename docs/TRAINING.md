@@ -9,7 +9,7 @@
 | pretrain.yml | manual or dashboard | restore Drive checkpoint, add training steps, export GGUF | versioned Drive files plus 14-day Actions artifact |
 | train.yml | manual from dashboard | inspect a public source and produce a provenance report | intake report only |
 
-The source-intake workflow and pretraining workflow are separate. The dashboard can dispatch either workflow: source inspection or incremental training. Source inspection does **not** yet ingest source text into the training corpus.
+The source-intake workflow and pretraining workflow are separate. Source intake now extracts bounded text from a public GitHub repository or one public web page, filters for Hebrew text, deduplicates documents, creates a corpus candidate and provenance manifest, and uploads both to Google Drive. It does not start training automatically. Review the source rights and corpus before dispatching pretraining.
 
 ## Incremental training
 
@@ -128,3 +128,26 @@ scripts/export_hf.py maps IvritLM tensors to a GPT-2-compatible state dictionary
 - OAuth credentials are passed only through GitHub Actions secrets.
 - Corpus paths are validated to remain inside the checked-out repository.
 - Checkpoint files contain the full model and optimizer state; protect the Drive folder accordingly.
+
+
+## Source intake and Drive-backed corpus
+
+The dashboard's source form dispatches `train.yml`. After the authorization acknowledgement, the workflow downloads a bounded public source (GitHub archive or one HTML/plain-text page), selects only TXT/Markdown/RST/HTML documents, extracts readable text, filters documents with at least 15% Hebrew letters, deduplicates by SHA-256, and limits the resulting corpus to 5 MiB. Repository code is never executed. The output is a **corpus candidate**, not a license determination; public accessibility and a checkbox do not establish legal permission. Review source terms and the generated corpus before training.
+
+The corpus and its provenance manifest are stored in the Drive folder `IvritLM Corpora`. The root `latest.json` records the latest corpus file ID and SHA-256. The training workflow can now leave `corpus_path` empty to download that latest corpus automatically. A manually supplied repository-relative TXT path remains supported. The first training run starts from random weights if no checkpoint exists; later runs resume the latest compatible IvritLM checkpoint.
+
+Drive layout:
+
+    IvritLM Models/
+      latest.json
+      0.1.0/
+        checkpoint-step-....pt
+        tokenizer-step-....json
+        manifest-step-....json
+        metrics-step-....json
+        ivritlm-step-....gguf
+      IvritLM Corpora/
+        hebrew-corpus-<sha256-prefix>.txt
+        manifest-<sha256-prefix>.json
+
+Source intake and pretraining both require the four Google Drive repository secrets. The dashboard token needs Actions read/write permission to dispatch workflows and read workflow runs.
