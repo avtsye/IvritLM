@@ -171,20 +171,53 @@ def ensure_corpus_folder(session):
 
 
 def upload_corpus():
+    """Append each reviewed intake batch to the cumulative training corpus."""
+    import hashlib
+    import re
+
     session = drive_session()
     source = Path("artifacts/source-intake/corpus.txt")
     manifest_path = Path("artifacts/source-intake/corpus-manifest.json")
     if not source.is_file() or not manifest_path.is_file():
         raise FileNotFoundError("Source intake corpus or manifest is missing.")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    digest = manifest["corpus_sha256"]
+    latest = load_latest(session)
+    incoming = source.read_text(encoding="utf-8")
+    previous_id = latest.get("corpus_file_id")
+    if previous_id:
+        previous_path = Path("artifacts/source-intake/previous-corpus.txt")
+        download_file(session, previous_id, previous_path)
+        previous = previous_path.read_text(encoding="utf-8")
+        # Corpus records begin with a Markdown-style ### heading. Deduplicate
+        # by normalized record body, not by source label.
+        def records(value):
+            parts = re.split(r"(?m)(?=^### )", value)
+            return [part.strip() for part in parts if part.strip()]
+        merged = []
+        seen = set()
+        for record in records(previous) + records(incoming):
+            body = record.split("\\n", 1)[1] if "\\n" in record else record
+            normalized = re.sub(r"\\s+", " ", body).strip()
+            digest_record = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+            if normalized and digest_record not in seen:
+                seen.add(digest_record)
+                merged.append(record)
+        combined = "\\n\\n".join(merged).strip() + "\\n"
+        source.write_text(combined, encoding="utf-8")
+        manifest["accepted_document_count"] = len(merged)
+        manifest["cumulative_batches"] = int(latest.get("corpus_batches", 1)) + 1
+        manifest["previous_corpus_sha256"] = latest.get("corpus_sha256")
+        manifest["cumulative_corpus"] = True
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    manifest["corpus_sha256"] = digest
+    manifest["corpus_bytes"] = source.stat().st_size
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
     corpus_folder = ensure_corpus_folder(session)
     name = f"hebrew-corpus-{digest[:16]}.txt"
     uploaded = upload_file(session, source, name, parent_id=corpus_folder)
     manifest_upload = upload_file(
         session, manifest_path, f"manifest-{digest[:16]}.json", parent_id=corpus_folder
     )
-    latest = load_latest(session)
     latest.update({
         "corpus_file_id": uploaded["id"],
         "corpus_file_name": name,
@@ -192,9 +225,10 @@ def upload_corpus():
         "corpus_sha256": digest,
         "corpus_source_url": manifest.get("source_url"),
         "corpus_document_count": manifest.get("accepted_document_count"),
+        "corpus_batches": int(manifest.get("cumulative_batches", 1)),
     })
     save_latest(session, latest)
-    print(f"Uploaded Hebrew corpus candidate to Google Drive/IvritLM Corpora/{name}")
+    print(f"Uploaded cumulative Hebrew corpus ({source.stat().st_size} bytes) to Google Drive/IvritLM Corpora/{name}")
 
 
 def download_corpus():
