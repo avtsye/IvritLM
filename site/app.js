@@ -128,7 +128,7 @@
     submit.querySelector("span").textContent = "שולח ל־GitHub…";
     try {
       await dispatchWorkflow(SOURCE_WORKFLOW, {source_url:source.url,source_kind:source.kind,license_ack:"yes"});
-      say("הבקשה התקבלה ב־GitHub. ריצת בדיקת המקור תופיע ברשימה בעוד מספר שניות.");
+      say("הבקשה התקבלה. המערכת תנסה לבנות קורפוס עברי ולשמור אותו ב-Google Drive. לאחר מכן אפשר להפעיל אימון.");
       setTimeout(loadRuns, 2500);
     } catch (e) { say(e.message, true); }
     finally {
@@ -165,7 +165,7 @@
         steps:String(steps),
         batch_size:String(batchSize)
       });
-      sayPretrain("בקשת האימון התקבלה. הריצה תופיע ברשימת הריצות. האימון דורש הגדרת Google Drive Secrets במאגר.");
+      sayPretrain("בקשת האימון התקבלה. אם הנתיב הושאר ריק, המערכת תשתמש בקורפוס האחרון ב-Drive.");
       setTimeout(loadRuns, 3000);
     } catch (e) { sayPretrain(e.message, true); }
     finally {
