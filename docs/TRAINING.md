@@ -25,22 +25,21 @@ Each run writes checkpoint.pt (model tensors, optimizer state, config, step, cor
 
 ## One-time Google Drive setup
 
-The workflow uses the owner's OAuth refresh token so files are stored in the owner's Drive. It does not use a service-account-owned My Drive.
+The workflow uses the owner's OAuth refresh token and the least-privilege drive.file scope. The setup helper creates or finds an IvritLM Models folder in the owner's Drive; files are stored in that account's Drive quota.
 
 1. In Google Cloud Console, create/select a project and enable the Google Drive API.
 2. Configure the OAuth consent screen. If the app is in Testing mode, add the Google account that owns the Drive folder as a test user.
 3. Create an OAuth client of type Desktop app and download its client-secrets JSON.
-4. Create a Google Drive folder for IvritLM model versions. Copy the folder ID from its URL (the part after /folders/).
-5. In a local clone, install requirements-model.txt and run:
+4. In a local clone, install requirements-model.txt and run:
    python scripts/google_drive_auth.py --client-secrets path/to/client_secret.json
-6. Complete Google's authorization in the browser. The helper prints the client ID, client secret, and refresh token.
-7. In GitHub → repository Settings → Secrets and variables → Actions, create these repository secrets:
+5. Complete Google's authorization in the browser. The helper creates or finds the IvritLM Models folder and prints its folder ID, client ID, client secret, and refresh token.
+6. In GitHub → repository Settings → Secrets and variables → Actions, create these repository secrets:
    - DRIVE_CLIENT_ID
    - DRIVE_CLIENT_SECRET
    - DRIVE_REFRESH_TOKEN
-   - DRIVE_FOLDER_ID
+   - DRIVE_FOLDER_ID (the ID printed by the helper)
 
-Treat the client secret and refresh token as passwords. Never commit the OAuth JSON, refresh token, checkpoint, or private corpus. Do not paste credentials into chat or workflow logs. If a credential is exposed, revoke it in Google Cloud and create a new one.
+The OAuth grant is limited to files created or opened by this IvritLM integration; it does not receive broad access to the rest of Drive. Treat the client secret and refresh token as passwords. Never commit the OAuth JSON, refresh token, checkpoint, or private corpus. Do not paste credentials into chat or workflow logs. If a credential is exposed, revoke it in Google Cloud and create a new one.
 
 ## What is stored in Drive
 
