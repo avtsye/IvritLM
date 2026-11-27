@@ -26,13 +26,17 @@ Items are complete only when code, tests, and documentation are present.
 - [x] Add model shape/loss tests and context-length validation.
 - [x] Add tiny synthetic-data CPU smoke training.
 - [x] Add basic autoregressive generation method.
-- [ ] Add user-facing inference CLI and causal-leakage regression test.
+- [x] Add a GPT-2-compatible weight/tokenizer export bridge with unit tests.
+- [ ] Verify GGUF conversion and runtime inference in CI.
 
 ## M4 — Training pipeline
 - [x] Add next-token training loop, validation-loss logging, and checkpoint/metrics output.
-- [x] Add bounded manual CPU pretraining workflow for a repository-resident approved corpus.
-- [ ] Add learning-rate scheduler, faithful checkpoint resume, and run metadata (including code revision/hardware).
-- [ ] Add secure external/GPU runner and artifact-storage configuration.
+- [x] Add bounded manual CPU pretraining workflow.
+- [x] Resume model weights and optimizer state across runs; preserve global step and RNG state.
+- [x] Add versioned Google Drive checkpoint, tokenizer, metrics, and GGUF persistence.
+- [x] Add manual incremental training workflow with a pinned llama.cpp converter.
+- [ ] Add learning-rate scheduler and richer hardware/code-revision metadata.
+- [ ] Add secure GPU runner and evaluate durable artifact retention/cost.
 
 ## M5 — First Hebrew experiment
 - [ ] Approve and version a legally usable Hebrew corpus.
