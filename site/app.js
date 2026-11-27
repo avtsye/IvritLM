@@ -145,8 +145,8 @@
     const corpusPath = $("corpus-path").value.trim();
     const steps = Number($("training-steps").value);
     const batchSize = Number($("batch-size").value);
-    if (!/^[A-Za-z0-9._/-]+\.txt$/.test(corpusPath) || corpusPath.startsWith("/") || corpusPath.split("/").includes("..")) {
-      sayPretrain("יש להזין נתיב יחסי לקובץ TXT במאגר, ללא '..'.", true);
+    if (corpusPath && (!/^[A-Za-z0-9._/-]+\.txt$/.test(corpusPath) || corpusPath.startsWith("/") || corpusPath.split("/").includes(".."))) {
+      sayPretrain("אם מציינים נתיב, יש להזין נתיב יחסי לקובץ TXT ללא '..'. אפשר להשאיר ריק לשימוש בקורפוס האחרון ב-Drive.", true);
       return;
     }
     if (!Number.isInteger(steps) || steps < 1 || steps > 1000) {
