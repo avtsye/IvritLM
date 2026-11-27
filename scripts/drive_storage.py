@@ -7,12 +7,10 @@ pointer that is updated only after each upload succeeds.
 import argparse
 import json
 import os
-import re
 from pathlib import Path
 
-import requests
 from google.auth.transport.requests import AuthorizedSession
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 API = "https://www.googleapis.com/drive/v3"
@@ -20,11 +18,18 @@ UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
 
 
 def drive_session():
-    raw = os.environ.get("DRIVE_SERVICE_ACCOUNT_JSON")
-    if not raw:
-        raise RuntimeError("Missing DRIVE_SERVICE_ACCOUNT_JSON GitHub Actions secret.")
-    info = json.loads(raw)
-    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    required = ["DRIVE_CLIENT_ID", "DRIVE_CLIENT_SECRET", "DRIVE_REFRESH_TOKEN"]
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        raise RuntimeError("Missing Google Drive OAuth secrets: " + ", ".join(missing))
+    creds = Credentials(
+        token=None,
+        refresh_token=os.environ["DRIVE_REFRESH_TOKEN"],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.environ["DRIVE_CLIENT_ID"],
+        client_secret=os.environ["DRIVE_CLIENT_SECRET"],
+        scopes=SCOPES,
+    )
     return AuthorizedSession(creds)
 
 
@@ -96,7 +101,7 @@ def save_latest(session, manifest):
 def write_temp_json(value):
     path = Path("artifacts/drive-latest.json")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path
 
 
