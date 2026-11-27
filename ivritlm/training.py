@@ -85,10 +85,10 @@ def train(corpus_path, output_dir, model_config=None, train_config=None,
             corpus_hashes = list(state.get("corpus_hashes", []))
             rng = state.get("rng_state")
             if rng:
-                torch.set_rng_state(rng["torch"])
+                torch.set_rng_state(rng["torch"].cpu())
                 random.setstate(rng["python"])
                 if torch.cuda.is_available() and rng.get("cuda"):
-                    torch.cuda.set_rng_state_all(rng["cuda"])
+                    torch.cuda.set_rng_state_all([item.cpu() for item in rng["cuda"]])
             print(json.dumps({"event": "resume", "previous_global_step": start_step,
                               "previous_corpora": len(corpus_hashes)}))
         else:
