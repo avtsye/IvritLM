@@ -7,7 +7,7 @@ from pathlib import Path
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.credentials import Credentials
 
-SCOPES = ["https://www.googleapis.com/auth/drive"]
+SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
 CHUNK_SIZE = 8 * 1024 * 1024
