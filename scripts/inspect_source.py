@@ -217,10 +217,12 @@ def inspect_web(url: str) -> tuple[dict, list[tuple[str, str]]]:
     if "text/html" not in content_type and "text/plain" not in content_type:
         raise ValueError(f"Unsupported content type: {content_type or 'unknown'}. Use HTML or plain text.")
     raw = response._ivritlm_body
-    text = clean_text(raw, ".html" if "html" in content_type else ".txt", response.apparent_encoding or "utf-8-sig")
+    detected = from_bytes(raw).best()
+    encoding = detected.encoding if detected else (response.encoding or "utf-8-sig")
+    text = clean_text(raw, ".html" if "html" in content_type else ".txt", encoding)
     title = ""
     if "html" in content_type:
-        soup = BeautifulSoup(raw.decode(response.encoding or "utf-8", errors="replace"), "html.parser")
+        soup = BeautifulSoup(raw.decode(encoding, errors="replace"), "html.parser")
         title = soup.title.get_text(" ", strip=True) if soup.title else ""
     report = {
         "source_type": "web",
