@@ -51,6 +51,9 @@ jobs:
           path: llama.cpp
           persist-credentials: false
 
+      - name: Apply IvritLM tokenizer compatibility patch
+        run: python scripts/patch_llama_cpp.py --converter-root llama.cpp
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
