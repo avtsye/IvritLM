@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ivritlm-chat-finetuning
+  group: ivritlm-model-training
   cancel-in-progress: false
 
 jobs:
@@ -99,12 +99,15 @@ jobs:
           }
 
       - name: Fine-tune on Hebrew conversations
+        env:
+          STEPS: ${{ inputs.steps }}
+          BATCH_SIZE: ${{ inputs.batch_size }}
         run: |
           python scripts/train_chat.py \
             --input artifacts/chat/conversations.jsonl \
             --resume artifacts/pretraining/checkpoint.pt \
-            --steps "${{ inputs.steps }}" \
-            --batch-size "${{ inputs.batch_size }}" \
+            --steps "$STEPS" \
+            --batch-size "$BATCH_SIZE" \
             --output artifacts/pretraining
 
       - name: Persist fine-tuned checkpoint to Google Drive
