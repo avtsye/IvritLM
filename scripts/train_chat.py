@@ -1,7 +1,7 @@
 """Supervised chat fine-tuning for the byte-level IvritLM prototype.
 
 Input: JSONL, one object per line: {"messages":[{"role":"user","content":"..."},{"role":"assistant","content":"..."}]}
-This first version uses causal next-byte training over role-marked conversations.
+Loss is masked to assistant response bytes; prompt bytes remain context only.
 """
 import argparse
 import json
