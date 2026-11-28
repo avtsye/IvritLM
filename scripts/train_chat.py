@@ -16,8 +16,10 @@ from ivritlm.training import train
 ALLOWED_ROLES = {"system", "user", "assistant"}
 
 
-def load_chat_jsonl(path):
+def load_chat_jsonl_with_mask(path):
     conversations = []
+    masks = []
+    count = 0
     for line_no, raw in enumerate(Path(path).read_text(encoding="utf-8-sig").splitlines(), 1):
         if not raw.strip():
             continue
@@ -29,6 +31,7 @@ def load_chat_jsonl(path):
         if not isinstance(messages, list) or len(messages) < 2:
             raise ValueError(f"Line {line_no}: expected an object with at least two messages.")
         rendered = []
+        mask = []
         previous_role = None
         assistant_seen = False
         for message in messages:
@@ -41,17 +44,51 @@ def load_chat_jsonl(path):
                 raise ValueError(f"Line {line_no}: user and assistant messages must alternate.")
             if role == "assistant":
                 assistant_seen = True
-            rendered.append(f"### {role}\n{content.strip()}\n")
+            header = f"### {role}\\n"
+            body = content.strip()
+            rendered.append(header + body + "\\n")
+            mask.extend([False] * len(header.encode("utf-8")))
+            mask.extend([role == "assistant"] * len(body.encode("utf-8")))
+            mask.append(role == "assistant")
             previous_role = role
         if not assistant_seen or previous_role != "assistant":
             raise ValueError(f"Line {line_no}: conversation must end with an assistant answer.")
-        conversations.append("\n".join(rendered))
-    if not conversations:
+        if conversations:
+            conversations.append("\\n\\n")
+            masks.extend([False, False])
+        conversations.append("".join(rendered))
+        # Message headers, bodies and newlines are concatenated exactly as above.
+        for message in messages:
+            role = message["role"]
+            header = f"### {role}\\n"
+            body = message["content"].strip()
+            # The mask was assembled per message; add no extra bytes between messages.
+        # Rebuild the mask with the exact serialized bytes (including inter-message newlines).
+        conversation_mask = []
+        for index, message in enumerate(messages):
+            role = message["role"]
+            header = f"### {role}\\n"
+            body = message["content"].strip()
+            if index:
+                conversation_mask.extend([False])  # newline inserted between rendered messages
+            conversation_mask.extend([False] * len(header.encode("utf-8")))
+            conversation_mask.extend([role == "assistant"] * len(body.encode("utf-8")))
+            conversation_mask.append(role == "assistant")  # trailing newline
+        masks.extend(conversation_mask)
+        count += 1
+    text = "".join(conversations)
+    if count == 0:
         raise ValueError("No conversations were found in the JSONL file.")
-    text = "\n\n".join(conversations)
     if len(text) < 100:
         raise ValueError("Chat dataset must contain at least 100 characters.")
-    return text, len(conversations)
+    if len(masks) != len(text.encode("utf-8")):
+        raise ValueError("Internal error: chat loss mask does not match UTF-8 token positions.")
+    return text, count, masks
+
+
+def load_chat_jsonl(path):
+    text, count, _ = load_chat_jsonl_with_mask(path)
+    return text, count
 
 
 def main():
@@ -67,7 +104,7 @@ def main():
         raise FileNotFoundError("A pretraining checkpoint is required before chat fine-tuning.")
     checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
     config = ModelConfig(**checkpoint["model_config"])
-    text, count = load_chat_jsonl(args.input)
+    text, count, loss_mask = load_chat_jsonl_with_mask(args.input)
     corpus_path = Path(args.output) / "chat-training.txt"
     corpus_path.parent.mkdir(parents=True, exist_ok=True)
     corpus_path.write_text(text, encoding="utf-8")
@@ -75,13 +112,13 @@ def main():
         corpus_path, args.output, config,
         TrainConfig(steps=args.steps, batch_size=args.batch_size,
                     learning_rate=args.learning_rate),
-        "cpu", args.resume,
+        "cpu", args.resume, loss_mask=loss_mask,
     )
     result["chat_conversations"] = count
-    result["training_mode"] = "causal-chat-finetuning"
+    result["training_mode"] = "assistant-only-masked-sft"
     metrics_path = Path(args.output) / "metrics.json"
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-    metrics.update({"chat_conversations": count, "training_mode": "causal-chat-finetuning"})
+    metrics.update({"chat_conversations": count, "training_mode": "assistant-only-masked-sft", "loss_target": "assistant responses only"})
     metrics_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
