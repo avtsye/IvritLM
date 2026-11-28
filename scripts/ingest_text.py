@@ -15,7 +15,7 @@ def main():
     if len(text) < 100:
         raise SystemExit("יש להזין לפחות 100 תווים של טקסט.")
     letters = [c for c in text if c.isalpha()]
-    if not letters or sum(bool(HEBREW.match(c)) for c in letters) / len(letters) < 0.15:
+    if not letters or sum(bool(HEBREW.match(c)) for c in letters) / len(letters) < 0.40:
         raise SystemExit("הטקסט אינו מכיל שיעור מספיק של עברית.")
     if len(text.encode("utf-8")) > 5 * 1024 * 1024:
         raise SystemExit("הטקסט גדול מהמגבלה של 5 MiB.")
@@ -34,7 +34,7 @@ def main():
         "accepted_document_count": 1,
         "corpus_bytes": len(corpus),
         "corpus_sha256": digest,
-        "language_filter": "At least 15% Hebrew letters",
+        "language_filter": "At least 40% Hebrew letters",
     }
     (output / "corpus-manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
