@@ -19,13 +19,11 @@
 </section>
 <div class="grid">
 <section class="panel"><div class="head"><div><p class="eyebrow">01 / DATA SOURCE</p><h2>מקור נתונים חדש</h2></div><small>01</small></div>
-<form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או אתר HTTPS ציבורי. באתר: עד 25,000 עמודים ובעומק 15, תוך כיבוד robots.txt, מפת האתר ומגבלות זמן ונפח. לאחר שמירת הקורפוס ב־Google Drive האימון יתחיל אוטומטית.</p>
+<form id="train-form"><label for="source-url">כתובת אתר או מאגר GitHub</label><input id="source-url" type="url" placeholder="https://github.com/owner/repository" required><p class="hint">מאגר ציבורי ב־GitHub או אתר HTTPS ציבורי. באתר: עד 500 עמודים ובעומק 5, תוך כיבוד robots.txt, מפת האתר ומגבלות זמן ונפח. הקורפוס יישמר כמועמד לאימון; יש לבדוק את הזכויות ואת התוכן לפני הפעלת אימון.</p>
 <label for="source-kind">סוג המקור</label><select id="source-kind"><option value="auto">זיהוי אוטומטי</option><option value="github">מאגר GitHub ציבורי</option><option value="web">אתר שלם (מפת אתר וקישורים פנימיים)</option></select>
-<div class="training-fields"><div><label for="source-training-steps">צעדי אימון אוטומטיים לאחר האיסוף</label><input id="source-training-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="source-batch-size">Batch size</label><input id="source-batch-size" type="number" min="1" max="16" value="4" required></div></div>
-<p class="hint">לאחר שהסריקה תסתיים והקורפוס יישמר ב־Google Drive, תופעל ריצת האימון אוטומטית. אם הסריקה או שמירת הקורפוס ייכשלו, האימון לא יתחיל.</p>
 <div class="check"><input id="license-ack" type="checkbox" required><label for="license-ack">בדקתי שיש לי הרשאה להשתמש בתוכן למטרת אימון, ושהוא אינו פרטי או חסוי.</label></div>
 <div class="check"><input id="public-ack" type="checkbox" required><label for="public-ack">המקור ציבורי ואינו דורש התחברות, עוגיות או מפתח גישה.</label></div>
-<button id="submit-btn" type="submit"><span>סריקה והתחלת אימון אוטומטית</span><b>←</b></button><p id="form-message" role="status"></p></form></section>
+<button id="submit-btn" type="submit"><span>סריקה ושמירת קורפוס לבדיקה</span><b>←</b></button><p id="form-message" role="status"></p></form></section>
 <aside class="panel"><div class="head"><div><p class="eyebrow">02 / CONNECTION</p><h2>חיבור ל־GitHub</h2></div><small>02</small></div>
 <p class="copy">כדי להפעיל Workflow מתוך הדף, נדרש Fine-grained Personal Access Token עם הרשאות מתאימות למאגר IvritLM.</p>
 <label for="github-token">GitHub token</label><input id="github-token" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
@@ -41,6 +39,7 @@
 <section class="panel pretrain"><div class="head"><div><p class="eyebrow">03 / MODEL TRAINING</p><h2>הפעלת אימון מתמשך</h2></div><small>02</small></div>
 <form id="pretrain-form"><label for="corpus-path">נתיב לקובץ קורפוס מאושר במאגר</label><input id="corpus-path" type="text" placeholder="ריק = שימוש בקורפוס האחרון שנשמר ב-Drive"><p class="hint">אפשר להשאיר ריק כדי להשתמש בקורפוס האחרון שנוצר מתהליך קליטת המקורות ב-Drive. לחלופין, אפשר לציין נתיב יחסי לקובץ TXT שכבר נמצא במאגר הציבורי.</p>
 <div class="training-fields"><div><label for="training-steps">צעדי אימון נוספים</label><input id="training-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="batch-size">Batch size</label><input id="batch-size" type="number" min="1" max="16" value="4" required></div></div>
+<div class="check"><input id="corpus-approved" type="checkbox" required><label for="corpus-approved">בדקתי את זכויות המקור ואת תוכן הקורפוס, ואני מאשר להשתמש בו לאימון.</label></div>
 <p class="hint">האימון ימשיך מה־checkpoint האחרון ב־Drive. בסיום תישמר גרסת checkpoint חדשה וייוצר קובץ GGUF. נדרשים סודות Google Drive המפורטים במדריך.</p>
 <button id="pretrain-btn" type="submit"><span>הפעלת אימון והפקת GGUF</span><b>←</b></button><p id="pretrain-message" role="status"></p></form></section>
 <section class="panel chat-panel" id="chat-tuning"><div class="head"><div><p class="eyebrow">04 / CONVERSATION TRAINING</p><h2>אימון יכולת שיחה</h2></div><small>JSONL</small></div>
