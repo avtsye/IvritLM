@@ -2,9 +2,9 @@
   "use strict";
   const OWNER = "avtsye", REPO = "IvritLM";
   const SOURCE_WORKFLOW = "train.yml", PRETRAIN_WORKFLOW = "pretrain.yml";
-  const API = "https://api.github.com";
+  const API = "/api";
   const $ = (id) => document.getElementById(id);
-  let token = "";
+  let adminKey = "";
   $("corpus-approved").checked = false;
   $("chat-data-approved").checked = false;
   const form = $("train-form"), submit = $("submit-btn"), message = $("form-message"), runs = $("runs");
@@ -19,7 +19,7 @@
     pretrainMessage.classList.toggle("error", error);
   }
   function headers() {
-    return {Accept:"application/vnd.github+json",Authorization:"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28"};
+    return {"Content-Type":"application/json","X-Admin-Key":adminKey};
   }
   function validateSource(raw, kind) {
     let u;
@@ -39,22 +39,16 @@
   }
   async function request(path, options = {}) {
     const response = await fetch(API+path,{...options,headers:{...headers(),...(options.headers||{})}});
+    let data = {};
+    try { data = await response.json(); } catch {}
     if (!response.ok) {
-      let detail = "";
-      try { detail = (await response.json()).message || ""; } catch {}
-      if (response.status === 401) throw new Error("האסימון אינו תקין או שפג תוקפו.");
-      if (response.status === 403) throw new Error("חסרה הרשאת Actions: Read and write או גישה למאגר.");
-      if (response.status === 404) throw new Error("ה־Workflow לא נמצא במאגר. בדוק שקובץ ה־Workflow קיים בענף main.");
-      throw new Error("שגיאת GitHub ("+response.status+"). "+detail);
+      if (response.status === 401) throw new Error("סיסמת הניהול שגויה או שפג תוקפה.");
+      throw new Error(data.error || "שגיאת שרת ("+response.status+").");
     }
-    return response.status === 204 ? null : response.json();
+    return data;
   }
   async function dispatchWorkflow(workflow, inputs) {
-    return request("/repos/"+OWNER+"/"+REPO+"/actions/workflows/"+workflow+"/dispatches", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({ref:"main",inputs})
-    });
+    return request("/dispatch", {method:"POST",body:JSON.stringify({workflow,inputs})});
   }
   function render(items) {
     runs.replaceChildren();
@@ -86,16 +80,16 @@
     }
   }
   async function loadRuns() {
-    token = $("github-token").value.trim();
-    if (!token) {
-      runs.textContent = "יש להזין אסימון GitHub כדי לקרוא את היסטוריית הריצות.";
+    adminKey = $("admin-key").value;
+    if (!adminKey) {
+      runs.textContent = "יש להזין סיסמת ניהול כדי לקרוא את היסטוריית הריצות.";
       runs.className = "empty";
       return;
     }
     runs.textContent = "טוען ריצות…";
     runs.className = "empty";
     try {
-      const data = await request("/repos/"+OWNER+"/"+REPO+"/actions/runs?per_page=8");
+      const data = await request("/runs");
       runs.className = "";
       render(data.workflow_runs || []);
     } catch (e) {
@@ -104,13 +98,13 @@
     }
   }
 
-  $("clear-token").addEventListener("click", () => {
-    token = "";
-    $("github-token").value = "";
-    runs.textContent = "האסימון נוקה מהזיכרון.";
+  $("clear-key").addEventListener("click", () => {
+    adminKey = "";
+    $("admin-key").value = "";
+    runs.textContent = "סיסמת הניהול נוקתה מהזיכרון.";
     runs.className = "empty";
-    say("האסימון נוקה.");
-    sayPretrain("האסימון נוקה.");
+    say("החיבור נותק.");
+    sayPretrain("החיבור נותק.");
   });
   $("refresh-runs").addEventListener("click", loadRuns);
 
@@ -148,8 +142,8 @@
   textForm.addEventListener("submit", async event => {
     event.preventDefault();
     sayText("");
-    token = $("github-token").value.trim();
-    if (!token) { sayText("יש להזין תחילה אסימון GitHub.", true); return; }
+    adminKey = $("admin-key").value;
+    if (!adminKey) { sayText("יש להזין תחילה סיסמת ניהול.", true); return; }
     const content = textArea.value.trim();
     if (content.length < 100) { sayText("יש להזין לפחות 100 תווים.", true); return; }
     if (content.length > 40000) { sayText("מגבלת ההזנה היא 40,000 תווים לריצה.", true); return; }
@@ -176,8 +170,8 @@
   form.addEventListener("submit", async event => {
     event.preventDefault();
     say("");
-    token = $("github-token").value.trim();
-    if (!token) { say("יש להזין אסימון GitHub.", true); return; }
+    token = $("admin-key").value.trim();
+    if (!adminKey) { say("יש להזין סיסמת ניהול.", true); return; }
     let source;
     try { source = validateSource($("source-url").value.trim(), $("source-kind").value); }
     catch (e) { say(e.message, true); return; }
@@ -210,8 +204,8 @@
   chatForm.addEventListener("submit", async event => {
     event.preventDefault();
     sayChat("");
-    token = $("github-token").value.trim();
-    if (!token) { sayChat("יש להזין תחילה אסימון GitHub.", true); return; }
+    token = $("admin-key").value.trim();
+    if (!adminKey) { sayChat("יש להזין תחילה סיסמת ניהול.", true); return; }
     const raw = $("chat-jsonl").value.trim();
     if (!$("chat-data-approved").checked) { sayChat("יש לאשר שיש לך הרשאה להשתמש בדוגמאות השיחה לאימון.", true); return; }
     if (!raw || raw.length > 60000) { sayChat("יש להזין נתוני JSONL עד 60,000 תווים.", true); return; }
@@ -251,8 +245,8 @@
   pretrainForm.addEventListener("submit", async event => {
     event.preventDefault();
     sayPretrain("");
-    token = $("github-token").value.trim();
-    if (!token) { sayPretrain("יש להזין תחילה אסימון GitHub.", true); return; }
+    token = $("admin-key").value.trim();
+    if (!adminKey) { sayPretrain("יש להזין תחילה סיסמת ניהול.", true); return; }
     const corpusPath = $("corpus-path").value.trim();
     if (!$("corpus-approved").checked) {
       sayPretrain("יש לאשר שבדקת את זכויות המקור ואת תוכן הקורפוס.", true); return;
