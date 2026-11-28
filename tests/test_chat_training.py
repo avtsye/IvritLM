@@ -62,7 +62,7 @@ def test_masked_batch_ignores_all_non_assistant_targets():
         assert all(target_mask[int(token)] for token in row[row != -100])
 
 def test_chat_training_runs_with_assistant_only_mask(tmp_path):
-    prefix = "### user\\n" + ("שאלה " * 80) + "\\n### assistant\\n"
+    prefix = "### user\n" + ("שאלה " * 80) + "\n### assistant\n"
     answer = "תשובה." * 80
     text = prefix + answer
     mask = [False] * len(prefix.encode("utf-8")) + [True] * len(answer.encode("utf-8"))
