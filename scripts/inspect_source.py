@@ -29,11 +29,11 @@ from charset_normalizer import from_bytes
 MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
 MAX_ARCHIVE_FILES = 500
 MAX_FILE_BYTES = 2 * 1024 * 1024
-MAX_CORPUS_BYTES = 1024 * 1024 * 1024
-MAX_CRAWL_PAGES = 25000
-MAX_CRAWL_DEPTH = 15
-MAX_TOTAL_CRAWL_BYTES = 2 * 1024 * 1024 * 1024
-MAX_SITEMAP_URLS = 25000
+MAX_CORPUS_BYTES = 100 * 1024 * 1024
+MAX_CRAWL_PAGES = 500
+MAX_CRAWL_DEPTH = 5
+MAX_TOTAL_CRAWL_BYTES = 100 * 1024 * 1024
+MAX_SITEMAP_URLS = 500
 CRAWL_DELAY_SECONDS = 0.5
 ALLOWED_TEXT_SUFFIXES = {".txt", ".md", ".rst", ".html", ".htm"}
 USER_AGENT = "IvritLM-SourceInspector/0.2 (+https://github.com/avtsye/IvritLM)"
@@ -91,6 +91,9 @@ def bounded_get(url: str) -> requests.Response:
                 response.close()
                 raise ValueError("Source exceeds the 20 MiB intake limit.")
         response._ivritlm_body = bytes(body)
+        response._content = response._ivritlm_body
+        response._content_consumed = True
+        response.close()
         return response
     raise ValueError("Too many redirects.")
 
@@ -115,36 +118,38 @@ def is_hebrew_text(text: str) -> bool:
     letters = [c for c in text if c.isalpha()]
     if len(letters) < 100:
         return False
-    return sum(bool(HEBREW_RE.match(c)) for c in letters) / len(letters) >= 0.15
+    return sum(bool(HEBREW_RE.match(c)) for c in letters) / len(letters) >= 0.40
 
 
 def write_corpus(documents: list[tuple[str, str]], report: dict) -> dict:
     output = Path("artifacts/source-intake")
     output.mkdir(parents=True, exist_ok=True)
-    chunks = []
+    corpus_path = output / "corpus.txt"
     seen = set()
     total = 0
     accepted = 0
-    for label, text in documents:
-        normalized = text.strip()
-        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-        if not normalized or digest in seen or not is_hebrew_text(normalized):
-            continue
-        encoded = (normalized + "\n").encode("utf-8")
-        if total + len(encoded) > MAX_CORPUS_BYTES:
-            break
-        seen.add(digest)
-        chunks.append(f"\n\n### מקור: {label}\n\n{normalized}")
-        total += len(encoded)
-        accepted += 1
-    if not chunks:
+    with corpus_path.open("w", encoding="utf-8", newline="\\n") as stream:
+        for label, text in documents:
+            normalized = text.strip()
+            if not normalized or not is_hebrew_text(normalized):
+                continue
+            digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+            if digest in seen:
+                continue
+            encoded_size = len((normalized + "\\n").encode("utf-8"))
+            if total + encoded_size > MAX_CORPUS_BYTES:
+                break
+            seen.add(digest)
+            stream.write(f"\\n\\n### מקור: {label}\\n\\n{normalized}")
+            total += encoded_size
+            accepted += 1
+    if not accepted:
+        corpus_path.unlink(missing_ok=True)
         raise ValueError(
             "לא נמצאו מסמכי טקסט בעברית באיכות/אורך המתאימים. "
             "נסה מאגר עם קובצי TXT/MD בעברית או עמוד עברי ארוך יותר."
         )
-    corpus = ("\n".join(chunks) + "\n").encode("utf-8")
-    corpus_path = output / "corpus.txt"
-    corpus_path.write_bytes(corpus)
+    corpus = corpus_path.read_bytes()
     corpus_sha = hashlib.sha256(corpus).hexdigest()
     manifest = {
         "project": "IvritLM",
@@ -156,11 +161,11 @@ def write_corpus(documents: list[tuple[str, str]], report: dict) -> dict:
         "accepted_document_count": accepted,
         "corpus_bytes": len(corpus),
         "corpus_sha256": corpus_sha,
-        "language_filter": "At least 15% Hebrew letters and 100 alphabetic characters per document",
+        "language_filter": "At least 40% Hebrew letters and 100 alphabetic characters per document",
         "deduplication": "SHA-256 of normalized document text",
     }
     (output / "corpus-manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
     )
     report.update({
         "stage": "corpus_candidate_created",
@@ -390,7 +395,7 @@ def inspect_web(url: str) -> tuple[dict, list[tuple[str, str]]]:
         "crawl_policy": (
             f"Same hostname only; sitemap plus internal links; maximum {MAX_CRAWL_PAGES} pages; "
             f"depth {MAX_CRAWL_DEPTH}; total download {MAX_TOTAL_CRAWL_BYTES} bytes; "
-            "robots.txt respected; 0.2 second delay between pages."
+            "robots.txt respected; {CRAWL_DELAY_SECONDS} second delay between pages."
         ),
         "license_review_required": True,
     }
