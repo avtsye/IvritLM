@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ivritlm-incremental-training
+  group: ivritlm-model-training
   cancel-in-progress: false
 
 jobs:
