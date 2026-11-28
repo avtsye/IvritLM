@@ -22,12 +22,24 @@ def read_corpus(path):
     return text
 
 
-def make_batch(tokens, batch_size, context_length, device):
+def make_batch(tokens, batch_size, context_length, device, target_mask=None):
     if tokens.numel() <= context_length + 1:
         raise ValueError("Tokenized corpus is shorter than context_length + 2.")
-    starts = torch.randint(0, tokens.numel() - context_length - 1, (batch_size,))
+    max_start = tokens.numel() - context_length - 1
+    if target_mask is None:
+        starts = torch.randint(0, max_start + 1, (batch_size,))
+    else:
+        eligible = torch.nonzero(target_mask[:tokens.numel() - 1], as_tuple=False).flatten()
+        if eligible.numel() == 0:
+            raise ValueError("No assistant target tokens are available for masked chat training.")
+        targets = eligible[torch.randint(0, eligible.numel(), (batch_size,))]
+        offsets = torch.randint(0, context_length, (batch_size,))
+        starts = (targets - 1 - offsets).clamp(min=0, max=max_start)
     x = torch.stack([tokens[i:i + context_length] for i in starts])
     y = torch.stack([tokens[i + 1:i + context_length + 1] for i in starts])
+    if target_mask is not None:
+        mask = torch.stack([target_mask[i + 1:i + context_length + 1] for i in starts])
+        y = y.masked_fill(~mask, -100)
     return x.to(device), y.to(device)
 
 
@@ -40,7 +52,7 @@ def _atomic_torch_save(payload, destination):
 
 
 def train(corpus_path, output_dir, model_config=None, train_config=None,
-          device_name="cpu", resume_from=None):
+          device_name="cpu", resume_from=None, loss_mask=None):
     from .tokenizer import ByteTokenizer
 
     model_config = model_config or ModelConfig()
@@ -56,11 +68,22 @@ def train(corpus_path, output_dir, model_config=None, train_config=None,
     corpus_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     tokenizer = ByteTokenizer()
     ids = torch.tensor(tokenizer.encode(text), dtype=torch.long)
+    target_mask = None
+    if loss_mask is not None:
+        if len(loss_mask) != ids.numel():
+            raise ValueError("Chat loss mask length must match the UTF-8 byte-token sequence.")
+        target_mask = torch.tensor(loss_mask, dtype=torch.bool)
+        if not target_mask.any():
+            raise ValueError("Chat loss mask contains no assistant response tokens.")
     split = max(model_config.context_length + 2, int(ids.numel() * (1 - train_config.validation_fraction)))
     split = min(split, ids.numel() - 1)
     train_tokens, val_tokens = ids[:split], ids[split:]
-    if val_tokens.numel() <= model_config.context_length + 1:
-        val_tokens = train_tokens[-(model_config.context_length + 2):]
+    train_mask = target_mask[:split] if target_mask is not None else None
+    val_mask = target_mask[split:] if target_mask is not None else None
+    if (val_tokens.numel() <= model_config.context_length + 1
+            or (val_mask is not None and not val_mask.any())):
+        val_tokens = train_tokens
+        val_mask = train_mask
 
     model = IvritLM(model_config).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_config.learning_rate)
@@ -100,7 +123,7 @@ def train(corpus_path, output_dir, model_config=None, train_config=None,
     final_step = start_step + train_config.steps
     model.train()
     for global_step in range(start_step + 1, final_step + 1):
-        x, y = make_batch(train_tokens, train_config.batch_size, model_config.context_length, device)
+        x, y = make_batch(train_tokens, train_config.batch_size, model_config.context_length, device, train_mask)
         _, loss = model(x, y)
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -110,7 +133,7 @@ def train(corpus_path, output_dir, model_config=None, train_config=None,
         if local_step == 1 or local_step % train_config.log_interval == 0 or global_step == final_step:
             model.eval()
             with torch.no_grad():
-                vx, vy = make_batch(val_tokens, min(train_config.batch_size, 4), model_config.context_length, device)
+                vx, vy = make_batch(val_tokens, min(train_config.batch_size, 4), model_config.context_length, device, val_mask)
                 _, val_loss = model(vx, vy)
             row = {"global_step": global_step, "run_step": local_step,
                    "train_loss": float(loss.item()), "validation_loss": float(val_loss.item()),
@@ -153,6 +176,8 @@ def train(corpus_path, output_dir, model_config=None, train_config=None,
         "corpus_sha256": corpus_hash,
         "corpora_seen": len(corpus_hashes),
         "resumed": start_step > 0,
+        "loss_masked": target_mask is not None,
+        "loss_target": "assistant responses only" if target_mask is not None else "all next tokens",
     }
     (out / "metrics.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (out / "run-manifest.json").write_text(json.dumps({
