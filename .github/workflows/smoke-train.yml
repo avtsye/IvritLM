@@ -7,6 +7,7 @@ on:
       - "tests/**"
       - "scripts/smoke_train.py"
       - "scripts/export_hf.py"
+      - "scripts/patch_llama_cpp.py"
       - "scripts/inspect_source.py"
       - "scripts/drive_storage.py"
       - "requirements-intake.txt"
@@ -33,6 +34,9 @@ jobs:
           ref: 15fcfc7357f8de73671d39e7d8c594e1beb3052d
           path: llama.cpp
           persist-credentials: false
+
+      - name: Apply IvritLM tokenizer compatibility patch
+        run: python scripts/patch_llama_cpp.py --converter-root llama.cpp
 
       - uses: actions/setup-python@v5
         with:
