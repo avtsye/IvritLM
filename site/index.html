@@ -4,7 +4,7 @@
 <header class="top"><a class="brand" href="./"><b>א</b><span><strong>IvritLM</strong><small>Hebrew Language Model</small></span></a><nav><a class="active" href="./">ניהול אימונים</a><a href="https://github.com/avtsye/IvritLM" target="_blank" rel="noreferrer">המאגר ↗</a><a href="https://github.com/avtsye/IvritLM/actions" target="_blank" rel="noreferrer">ריצות Actions ↗</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.he.md">עברית</a><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">English</a></nav></header>
 <main class="wrap">
 <section class="intro"><div><p class="eyebrow">TRAINING CONTROL CENTER</p><h1>ניהול אימונים</h1><p>הוספת טקסטים וקישורים, בניית קורפוס עברי, אימון מתמשך וניהול תוצרי המודל — במקום אחד.</p></div><span class="pill">● סביבת פיתוח</span></section>
-<section class="notice"><b>סביבת עבודה אחידה: נתונים ← קורפוס ← אימון ← מודל</b><p>אפשר להזין טקסט ישירות, להעלות קובץ טקסט או לסרוק אתר ציבורי. החומר עובר ניקוי ובדיקת עברית, נשמר כקורפוס ב־Google Drive ומשמש לאימון המודל. כל התהליך והיסטוריית הריצות מרוכזים בדף זה.</p></section>
+<section class="notice"><b>סביבת עבודה אחידה: נתונים ← קורפוס ← אימון ← מודל</b><p>אפשר להזין טקסט ישירות, להעלות קובץ טקסט או לסרוק אתר ציבורי. החומר עובר ניקוי ובדיקת עברית, נשמר כקורפוס ב־Google Drive ומשמש לאימון המודל. בדיקת זכויות ותוכן מתבצעת לפני האימון; כל התהליך והיסטוריית הריצות מרוכזים בדף זה.</p></section>
 <section class="panel quick-guide">
 <div class="head"><div><p class="eyebrow">QUICK START / מדריך מהיר</p><h2>מתחילים בארבע פעולות</h2></div><small>מדריך</small></div>
 <ol>
@@ -44,7 +44,7 @@
 <button id="pretrain-btn" type="submit"><span>הפעלת אימון והפקת GGUF</span><b>←</b></button><p id="pretrain-message" role="status"></p></form></section>
 <section class="panel chat-panel" id="chat-tuning"><div class="head"><div><p class="eyebrow">04 / CONVERSATION TRAINING</p><h2>אימון יכולת שיחה</h2></div><small>JSONL</small></div>
 <form id="chat-form"><label for="chat-jsonl">דוגמאות שיחה בעברית — שורה אחת לכל שיחה</label><textarea id="chat-jsonl" rows="9" maxlength="60000" dir="ltr" spellcheck="false" placeholder='{"messages":[{"role":"user","content":"שלום, מה שלומך?"},{"role":"assistant","content":"שלום! אני כאן כדי לעזור."}]}' required></textarea>
-<p class="hint">כל שורה היא אובייקט JSON עם מערך messages. התפקידים המותרים: system, user, assistant; השיחה חייבת להסתיים בתשובת assistant. מומלץ להוסיף מאות ואלפי דוגמאות איכותיות ומגוונות. הנתונים משמשים לאימון נוסף על גבי checkpoint קיים.</p>
+<p class="hint">כל שורה היא אובייקט JSON עם מערך messages. התפקידים המותרים: system, user, assistant; השיחה חייבת להסתיים בתשובת assistant. מומלץ להוסיף מאות ואלפי דוגמאות איכותיות ומגוונות. המערכת מחשבת loss רק על תשובות assistant, ולא על הודעות המשתמש או כותרות התפקיד. נדרש checkpoint קיים.</p>
 <div class="check"><input id="chat-data-approved" type="checkbox" required><label for="chat-data-approved">יש לי הרשאה להשתמש בדוגמאות השיחה לאימון, והן אינן מכילות מידע פרטי או חסוי.</label></div>
 <div class="training-fields"><div><label for="chat-steps">צעדי אימון</label><input id="chat-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="chat-batch">Batch size</label><input id="chat-batch" type="number" min="1" max="16" value="4" required></div></div>
 <p class="hint">נדרש אימון בסיסי קודם. בסיום נשמר checkpoint מעודכן ונוצר GGUF חדש ב־Google Drive.</p>
