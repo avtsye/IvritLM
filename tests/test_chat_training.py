@@ -3,6 +3,8 @@ import json
 import pytest
 
 from scripts.train_chat import load_chat_jsonl, load_chat_jsonl_with_mask
+from ivritlm.training import make_batch
+import torch
 
 
 def test_load_chat_jsonl_serializes_hebrew_conversation(tmp_path):
@@ -47,3 +49,13 @@ def test_chat_loss_mask_targets_only_assistant_response_bytes(tmp_path):
     assert len(mask) == len(encoded)
     assert not any(mask[user_start:user_start + len("שאלת משתמש".encode("utf-8"))])
     assert all(mask[assistant_start:assistant_start + len("תשובת עוזר".encode("utf-8"))])
+
+def test_masked_batch_ignores_all_non_assistant_targets():
+    tokens = torch.arange(80, dtype=torch.long)
+    target_mask = torch.zeros(80, dtype=torch.bool)
+    target_mask[20:26] = True
+    target_mask[50:56] = True
+    _, targets = make_batch(tokens, batch_size=8, context_length=8, device="cpu", target_mask=target_mask)
+    for row in targets:
+        assert (row != -100).any()
+        assert all(target_mask[int(token)] for token in row[row != -100])
