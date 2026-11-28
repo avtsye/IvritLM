@@ -170,7 +170,7 @@
   form.addEventListener("submit", async event => {
     event.preventDefault();
     say("");
-    token = $("admin-key").value.trim();
+    adminKey = $("admin-key").value;
     if (!adminKey) { say("יש להזין סיסמת ניהול.", true); return; }
     let source;
     try { source = validateSource($("source-url").value.trim(), $("source-kind").value); }
@@ -204,7 +204,7 @@
   chatForm.addEventListener("submit", async event => {
     event.preventDefault();
     sayChat("");
-    token = $("admin-key").value.trim();
+    adminKey = $("admin-key").value;
     if (!adminKey) { sayChat("יש להזין תחילה סיסמת ניהול.", true); return; }
     const raw = $("chat-jsonl").value.trim();
     if (!$("chat-data-approved").checked) { sayChat("יש לאשר שיש לך הרשאה להשתמש בדוגמאות השיחה לאימון.", true); return; }
@@ -245,7 +245,7 @@
   pretrainForm.addEventListener("submit", async event => {
     event.preventDefault();
     sayPretrain("");
-    token = $("admin-key").value.trim();
+    adminKey = $("admin-key").value;
     if (!adminKey) { sayPretrain("יש להזין תחילה סיסמת ניהול.", true); return; }
     const corpusPath = $("corpus-path").value.trim();
     if (!$("corpus-approved").checked) {
