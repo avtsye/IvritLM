@@ -28,3 +28,6 @@ def test_export_writes_hf_gpt2_model_and_byte_vocab(tmp_path):
     assert tokenizer_config["unk_token"] == "<|eos|>"
     assert (out / "pytorch_model.bin").is_file()
     assert (out / "merges.txt").is_file()
+    marker = json.loads((out / "ivritlm_tokenizer.json").read_text(encoding="utf-8"))
+    assert marker["tokenizer_type"] == "utf8-byte-v1"
+    assert marker["pretokenizer"] == "gpt-2"
