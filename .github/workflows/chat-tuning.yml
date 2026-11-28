@@ -17,6 +17,13 @@ on:
         required: true
         default: "4"
         type: string
+      data_approved:
+        description: Confirm rights to use this conversation dataset for model training
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
 
 permissions:
   contents: read
@@ -58,6 +65,7 @@ jobs:
           CHAT_JSONL: ${{ inputs.chat_jsonl }}
           STEPS: ${{ inputs.steps }}
           BATCH_SIZE: ${{ inputs.batch_size }}
+          DATA_APPROVED: ${{ inputs.data_approved }}
           DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
           DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
           DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
@@ -67,6 +75,8 @@ jobs:
           import os
           from pathlib import Path
           from scripts.train_chat import load_chat_jsonl
+          if os.environ.get("DATA_APPROVED") != "yes":
+              raise SystemExit("Confirm that you have the rights to use this dataset for training.")
           raw = os.environ.get("CHAT_JSONL", "")
           if not raw or len(raw) > 60000:
               raise SystemExit("Provide JSONL chat data (maximum 60,000 characters).")
