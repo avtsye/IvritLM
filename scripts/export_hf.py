@@ -58,7 +58,7 @@ def build_tokenizer_files(output, context_length):
             "pretokenizer": "gpt-2",
             "merge_rules": 0,
             "vocab_size": 258,
-        }, indent=2) + "\\n",
+        }, indent=2) + "\n",
         encoding="utf-8",
     )
 
