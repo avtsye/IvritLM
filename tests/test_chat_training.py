@@ -37,8 +37,8 @@ def test_chat_loss_mask_targets_only_assistant_response_bytes(tmp_path):
     path = tmp_path / "chat.jsonl"
     path.write_text(json.dumps({
         "messages": [
-            {"role": "user", "content": "שאלת משתמש ארוכה מספיק לצורך בדיקה"},
-            {"role": "assistant", "content": "תשובת עוזר ארוכה מספיק לצורך בדיקה"},
+            {"role": "user", "content": "שאלת משתמש ארוכה מספיק לצורך בדיקה עם עוד מילים כדי לעבור את סף האורך של מערך הבדיקה"},
+            {"role": "assistant", "content": "תשובת עוזר ארוכה מספיק לצורך בדיקה עם הסבר נוסף ומפורט כדי לוודא שהמסכה פועלת כראוי"},
         ]
     }, ensure_ascii=False) + "\n", encoding="utf-8")
     text, count, mask = load_chat_jsonl_with_mask(path)
