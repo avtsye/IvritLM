@@ -124,7 +124,7 @@
   textFile.addEventListener("change", async () => {
     const file = textFile.files && textFile.files[0];
     if (!file) return;
-    if (!/\\.txt$/i.test(file.name) && file.type !== "text/plain") {
+    if (!/\.txt$/i.test(file.name) && file.type !== "text/plain") {
       sayText("יש לבחור קובץ TXT בלבד.", true); textFile.value = ""; return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -210,7 +210,7 @@
     if (!token) { sayChat("יש להזין תחילה אסימון GitHub.", true); return; }
     const raw = $("chat-jsonl").value.trim();
     if (!raw || raw.length > 60000) { sayChat("יש להזין נתוני JSONL עד 60,000 תווים.", true); return; }
-    const rows = raw.split(/\\r?\\n/).filter(line => line.trim());
+    const rows = raw.split(/\r?\n/).filter(line => line.trim());
     try {
       if (!rows.length) throw new Error("לא נמצאו שיחות.");
       for (let i = 0; i < rows.length; i++) {
@@ -248,6 +248,9 @@
     token = $("github-token").value.trim();
     if (!token) { sayPretrain("יש להזין תחילה אסימון GitHub.", true); return; }
     const corpusPath = $("corpus-path").value.trim();
+    if (!$("corpus-approved").checked) {
+      sayPretrain("יש לאשר שבדקת את זכויות המקור ואת תוכן הקורפוס.", true); return;
+    }
     const steps = Number($("training-steps").value);
     const batchSize = Number($("batch-size").value);
     if (corpusPath && (!/^[A-Za-z0-9._/-]+\.txt$/.test(corpusPath) || corpusPath.startsWith("/") || corpusPath.split("/").includes(".."))) {
@@ -267,6 +270,7 @@
     try {
       await dispatchWorkflow(PRETRAIN_WORKFLOW, {
         corpus_path:corpusPath,
+        data_approved:"yes",
         steps:String(steps),
         batch_size:String(batchSize)
       });
