@@ -10,7 +10,7 @@
 | train.yml | dashboard | crawl a public source and build a Hebrew corpus | versioned corpus and provenance in Drive |
 | ingest-text.yml | dashboard | ingest pasted Hebrew text | corpus and provenance in Drive |
 
-The dashboard is a single control center for adding text, crawling sources, starting training, and reviewing workflow runs. Users can paste up to 40,000 characters per ingestion run or load a local TXT file. Public website intake crawls up to 12 same-host pages (depth 2); public GitHub intake extracts supported TXT/Markdown/RST/HTML files. Intake filters for Hebrew, deduplicates documents, writes a corpus and provenance manifest, and uploads them to Drive. Ingestion and pretraining remain separate actions so the user can review source rights before training.
+The dashboard is a single control center for adding text, crawling sources, starting training, and reviewing workflow runs. Users can paste up to 40,000 characters per ingestion run or load a local TXT file. Public website intake crawls up to 500 same-host pages (depth 5, 100 MiB total downloaded, 0.5-second request delay); public GitHub intake extracts supported TXT/Markdown/RST/HTML files. Intake requires at least 40% Hebrew letters per document, deduplicates documents, writes a corpus and provenance manifest, and uploads them to Drive. Ingestion and pretraining remain separate actions. Pretraining requires an explicit approval input confirming that source rights and corpus contents were reviewed.
 
 ## Incremental training
 
@@ -122,7 +122,7 @@ scripts/export_hf.py maps IvritLM tensors to a GPT-2-compatible state dictionary
 
 ## Security and operations
 
-- Training starts only through manual dispatch.
+- Training starts only through manual dispatch and requires explicit data-review approval.
 - The workflow serializes training runs to prevent concurrent checkpoint races.
 - OAuth credentials are passed only through GitHub Actions secrets.
 - Corpus paths are validated to remain inside the checked-out repository.
@@ -131,9 +131,9 @@ scripts/export_hf.py maps IvritLM tensors to a GPT-2-compatible state dictionary
 
 ## Source intake and Drive-backed corpus
 
-The dashboard's source form dispatches `train.yml`. After the authorization acknowledgement, the workflow downloads a bounded public source (GitHub archive or one HTML/plain-text page), selects only TXT/Markdown/RST/HTML documents, extracts readable text, filters documents with at least 15% Hebrew letters, deduplicates by SHA-256, and limits the resulting corpus to 5 MiB. Repository code is never executed. The output is a **corpus candidate**, not a license determination; public accessibility and a checkbox do not establish legal permission. Review source terms and the generated corpus before training.
+The dashboard's source form dispatches `train.yml`. After the authorization acknowledgement, the workflow downloads a bounded public source (GitHub archive or same-host pages discovered from sitemaps and links), selects only TXT/Markdown/RST/HTML documents, extracts readable text, filters documents with at least 40% Hebrew letters, deduplicates by SHA-256, and limits the resulting corpus to 100 MiB. Repository code is never executed. The output is a **corpus candidate**, not a license determination; public accessibility and a checkbox do not establish legal permission. Review source terms and the generated corpus before training.
 
-The corpus and its provenance manifest are stored in the Drive folder `IvritLM Corpora`. The root `latest.json` records the latest corpus file ID and SHA-256. The training workflow can now leave `corpus_path` empty to download that latest corpus automatically. A manually supplied repository-relative TXT path remains supported. The first training run starts from random weights if no checkpoint exists; later runs resume the latest compatible IvritLM checkpoint.
+The corpus and its provenance manifest are stored in the Drive folder `IvritLM Corpora`. Source intake never dispatches training automatically; review rights and contents first, then approve manually in the pretraining form. The root `latest.json` records the latest corpus file ID and SHA-256. The training workflow can now leave `corpus_path` empty to download that latest corpus automatically. A manually supplied repository-relative TXT path remains supported. The first training run starts from random weights if no checkpoint exists; later runs resume the latest compatible IvritLM checkpoint.
 
 Drive layout:
 
