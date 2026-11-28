@@ -45,10 +45,11 @@ def build_tokenizer_files(output, context_length):
         "add_prefix_space": False,
         "bos_token": "<|bos|>",
         "eos_token": "<|eos|>",
+        "unk_token": "<|eos|>",
     }
     (output / "tokenizer_config.json").write_text(json.dumps(tokenizer_config, ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "special_tokens_map.json").write_text(
-        json.dumps({"bos_token": "<|bos|>", "eos_token": "<|eos|>"}, ensure_ascii=False, indent=2),
+        json.dumps({"bos_token": "<|bos|>", "eos_token": "<|eos|>", "unk_token": "<|eos|>"}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
