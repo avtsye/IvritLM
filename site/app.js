@@ -209,6 +209,7 @@
     token = $("github-token").value.trim();
     if (!token) { sayChat("יש להזין תחילה אסימון GitHub.", true); return; }
     const raw = $("chat-jsonl").value.trim();
+    if (!$("chat-data-approved").checked) { sayChat("יש לאשר שיש לך הרשאה להשתמש בדוגמאות השיחה לאימון.", true); return; }
     if (!raw || raw.length > 60000) { sayChat("יש להזין נתוני JSONL עד 60,000 תווים.", true); return; }
     const rows = raw.split(/\r?\n/).filter(line => line.trim());
     try {
@@ -232,7 +233,7 @@
     chatButton.disabled = true;
     chatButton.querySelector("span").textContent = "מפעיל אימון שיחות…";
     try {
-      await dispatchWorkflow("chat-tuning.yml", {chat_jsonl:raw,steps:String(steps),batch_size:String(batch)});
+      await dispatchWorkflow("chat-tuning.yml", {chat_jsonl:raw,steps:String(steps),batch_size:String(batch),data_approved:"yes"});
       sayChat("אימון השיחות התקבל. המערכת תמשיך מה-checkpoint האחרון, תשמור גרסה מעודכנת ותנסה ליצור ולהעלות GGUF. אפשר לעקוב באזור הריצות.");
       setTimeout(loadRuns, 2500);
     } catch (e) { sayChat(e.message, true); }
