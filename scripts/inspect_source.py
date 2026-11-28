@@ -128,7 +128,7 @@ def write_corpus(documents: list[tuple[str, str]], report: dict) -> dict:
     seen = set()
     total = 0
     accepted = 0
-    with corpus_path.open("w", encoding="utf-8", newline="\\n") as stream:
+    with corpus_path.open("w", encoding="utf-8", newline="\n") as stream:
         for label, text in documents:
             normalized = text.strip()
             if not normalized or not is_hebrew_text(normalized):
@@ -136,11 +136,11 @@ def write_corpus(documents: list[tuple[str, str]], report: dict) -> dict:
             digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
             if digest in seen:
                 continue
-            encoded_size = len((normalized + "\\n").encode("utf-8"))
+            encoded_size = len((normalized + "\n").encode("utf-8"))
             if total + encoded_size > MAX_CORPUS_BYTES:
                 break
             seen.add(digest)
-            stream.write(f"\\n\\n### מקור: {label}\\n\\n{normalized}")
+            stream.write(f"\n\n### מקור: {label}\n\n{normalized}")
             total += encoded_size
             accepted += 1
     if not accepted:
@@ -165,7 +165,7 @@ def write_corpus(documents: list[tuple[str, str]], report: dict) -> dict:
         "deduplication": "SHA-256 of normalized document text",
     }
     (output / "corpus-manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     report.update({
         "stage": "corpus_candidate_created",
