@@ -70,9 +70,11 @@ def train(corpus_path, output_dir, model_config=None, train_config=None,
     ids = torch.tensor(tokenizer.encode(text), dtype=torch.long)
     target_mask = None
     if loss_mask is not None:
-        if len(loss_mask) != ids.numel():
+        if len(loss_mask) != ids.numel() - 2:
             raise ValueError("Chat loss mask length must match the UTF-8 byte-token sequence.")
-        target_mask = torch.tensor(loss_mask, dtype=torch.bool)
+        # ByteTokenizer adds BOS/EOS around the text. Do not train on BOS; do
+        # train the terminal EOS so the assistant learns where to stop.
+        target_mask = torch.tensor([False, *loss_mask, True], dtype=torch.bool)
         if not target_mask.any():
             raise ValueError("Chat loss mask contains no assistant response tokens.")
     split = max(model_config.context_length + 2, int(ids.numel() * (1 - train_config.validation_fraction)))
