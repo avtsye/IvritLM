@@ -1,4 +1,6 @@
 from pathlib import Path
+import requests
+import json
 
 from scripts.inspect_source import clean_text, is_hebrew_text, write_corpus
 
@@ -32,3 +34,41 @@ def test_corpus_deduplicates_and_writes_provenance(tmp_path, monkeypatch):
     assert manifest["corpus_sha256"]
     assert report["training_started"] is False
     assert Path("artifacts/source-intake/corpus-manifest.json").is_file()
+
+class _RawBody:
+    def __init__(self, body):
+        self.body = body
+
+    def stream(self, chunk_size, decode_content=True):
+        for offset in range(0, len(self.body), chunk_size):
+            yield self.body[offset:offset + chunk_size]
+
+    def close(self):
+        pass
+
+
+def test_bounded_get_preserves_json_after_streaming(monkeypatch):
+    response = requests.Response()
+    response.status_code = 200
+    response.url = "https://example.com/data.json"
+    response.headers = {"Content-Length": "11", "Content-Type": "application/json"}
+    response.raw = _RawBody(b'{"ok":true}')
+    response._content = False
+    response._content_consumed = False
+
+    class _Session:
+        def get(self, *args, **kwargs):
+            return response
+
+    monkeypatch.setattr("scripts.inspect_source.validate_public_https", lambda url: url)
+    monkeypatch.setattr("scripts.inspect_source.requests.Session", _Session)
+    result = __import__("scripts.inspect_source", fromlist=["bounded_get"]).bounded_get("https://example.com/data.json")
+    assert result._ivritlm_body == b'{"ok":true}'
+    assert result.json() == {"ok": True}
+
+
+def test_hebrew_filter_rejects_low_hebrew_ratio():
+    mostly_english = "English words with a small שלום fragment " * 5
+    mostly_hebrew = "זהו מסמך עברי תקין שמכיל מספיק אותיות ומילים לצורך בדיקה " * 4
+    assert not is_hebrew_text(mostly_english)
+    assert is_hebrew_text(mostly_hebrew)
