@@ -166,6 +166,16 @@ jobs:
           print(f"GGUF validated: {model.stat().st_size} bytes")
           PY
 
+      - name: Build llama.cpp runtime and load the exported model
+        run: |
+          cmake -S llama.cpp -B llama.cpp/build -DGGML_NATIVE=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_BUILD_SERVER=OFF
+          cmake --build llama.cpp/build --target llama-cli -j2
+          llama.cpp/build/bin/llama-cli \
+            --model artifacts/pretraining/model.gguf \
+            --prompt "שלום" \
+            --n-predict 4 \
+            --no-display-prompt
+
       - name: Upload GGUF model and metrics to Google Drive
         env:
           DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
