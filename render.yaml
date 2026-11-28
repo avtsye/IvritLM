@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ivritlm-admin
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    healthCheckPath: /api/health
+    envVars:
+      - key: GH_TOKEN
+        sync: false
+      - key: ADMIN_KEY
+        generateValue: true
