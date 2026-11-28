@@ -31,7 +31,7 @@ def load_chat_jsonl_with_mask(path):
         if not isinstance(messages, list) or len(messages) < 2:
             raise ValueError(f"Line {line_no}: expected an object with at least two messages.")
         rendered = []
-        mask = []
+        conversation_mask = []
         previous_role = None
         assistant_seen = False
         for message in messages:
@@ -44,36 +44,19 @@ def load_chat_jsonl_with_mask(path):
                 raise ValueError(f"Line {line_no}: user and assistant messages must alternate.")
             if role == "assistant":
                 assistant_seen = True
-            header = f"### {role}\\n"
+            header = f"### {role}\n"
             body = content.strip()
-            rendered.append(header + body + "\\n")
-            mask.extend([False] * len(header.encode("utf-8")))
-            mask.extend([role == "assistant"] * len(body.encode("utf-8")))
-            mask.append(role == "assistant")
+            rendered.append(header + body + "\n")
+            conversation_mask.extend([False] * len(header.encode("utf-8")))
+            conversation_mask.extend([role == "assistant"] * len(body.encode("utf-8")))
+            conversation_mask.append(role == "assistant")
             previous_role = role
         if not assistant_seen or previous_role != "assistant":
             raise ValueError(f"Line {line_no}: conversation must end with an assistant answer.")
         if conversations:
-            conversations.append("\\n\\n")
+            conversations.append("\n\n")
             masks.extend([False, False])
         conversations.append("".join(rendered))
-        # Message headers, bodies and newlines are concatenated exactly as above.
-        for message in messages:
-            role = message["role"]
-            header = f"### {role}\\n"
-            body = message["content"].strip()
-            # The mask was assembled per message; add no extra bytes between messages.
-        # Rebuild the mask with the exact serialized bytes (including inter-message newlines).
-        conversation_mask = []
-        for index, message in enumerate(messages):
-            role = message["role"]
-            header = f"### {role}\\n"
-            body = message["content"].strip()
-            if index:
-                conversation_mask.extend([False])  # newline inserted between rendered messages
-            conversation_mask.extend([False] * len(header.encode("utf-8")))
-            conversation_mask.extend([role == "assistant"] * len(body.encode("utf-8")))
-            conversation_mask.append(role == "assistant")  # trailing newline
         masks.extend(conversation_mask)
         count += 1
     text = "".join(conversations)
@@ -82,7 +65,7 @@ def load_chat_jsonl_with_mask(path):
     if len(text) < 100:
         raise ValueError("Chat dataset must contain at least 100 characters.")
     if len(masks) != len(text.encode("utf-8")):
-        raise ValueError("Internal error: chat loss mask does not match UTF-8 token positions.")
+        raise ValueError("Internal error: chat loss mask does not match UTF-8 byte-token positions.")
     return text, count, masks
 
 
