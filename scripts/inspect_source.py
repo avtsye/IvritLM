@@ -14,6 +14,7 @@ import socket
 import sys
 import zipfile
 import gzip
+import io
 import time
 import xml.etree.ElementTree as ET
 from urllib.robotparser import RobotFileParser
@@ -293,7 +294,10 @@ def discover_sitemap_urls(start: str, sitemap_urls: list[str]) -> list[str]:
         raw = response._ivritlm_body
         if sitemap_url.lower().endswith(".gz"):
             try:
-                raw = gzip.decompress(raw)
+                with gzip.GzipFile(fileobj=io.BytesIO(raw)) as compressed:
+                    raw = compressed.read(MAX_DOWNLOAD_BYTES + 1)
+                if len(raw) > MAX_DOWNLOAD_BYTES:
+                    continue
             except OSError:
                 continue
         try:
