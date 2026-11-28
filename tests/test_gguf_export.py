@@ -24,5 +24,7 @@ def test_export_writes_hf_gpt2_model_and_byte_vocab(tmp_path):
     assert saved_config["architectures"] == ["GPT2LMHeadModel"]
     assert saved_config["vocab_size"] == 258
     assert vocab["<|bos|>"] == 256 and vocab["<|eos|>"] == 257
+    tokenizer_config = json.loads((out / "tokenizer_config.json").read_text(encoding="utf-8"))
+    assert tokenizer_config["unk_token"] == "<|eos|>"
     assert (out / "pytorch_model.bin").is_file()
     assert (out / "merges.txt").is_file()
