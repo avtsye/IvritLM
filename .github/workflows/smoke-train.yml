@@ -75,7 +75,7 @@ jobs:
 
       - name: Build llama.cpp runtime and load the exported model
         run: |
-          cmake -S llama.cpp -B llama.cpp/build -DGGML_NATIVE=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_BUILD_SERVER=OFF
+          cmake -S llama.cpp -B llama.cpp/build -DGGML_NATIVE=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_BUILD_SERVER=ON
           cmake --build llama.cpp/build --target llama-cli -j2
           llama.cpp/build/bin/llama-cli \
             --model artifacts/pretraining/model.gguf \
