@@ -29,7 +29,7 @@ def make_batch(tokens, batch_size, context_length, device, target_mask=None):
     if target_mask is None:
         starts = torch.randint(0, max_start + 1, (batch_size,))
     else:
-        eligible = torch.nonzero(target_mask[:tokens.numel() - 1], as_tuple=False).flatten()
+        eligible = torch.nonzero(target_mask[1:], as_tuple=False).flatten() + 1
         if eligible.numel() == 0:
             raise ValueError("No assistant target tokens are available for masked chat training.")
         targets = eligible[torch.randint(0, eligible.numel(), (batch_size,))]
