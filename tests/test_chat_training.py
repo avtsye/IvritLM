@@ -3,7 +3,8 @@ import json
 import pytest
 
 from scripts.train_chat import load_chat_jsonl, load_chat_jsonl_with_mask
-from ivritlm.training import make_batch
+from ivritlm.training import make_batch, train
+from ivritlm.config import ModelConfig, TrainConfig
 import torch
 
 
@@ -59,3 +60,22 @@ def test_masked_batch_ignores_all_non_assistant_targets():
     for row in targets:
         assert (row != -100).any()
         assert all(target_mask[int(token)] for token in row[row != -100])
+
+def test_chat_training_runs_with_assistant_only_mask(tmp_path):
+    prefix = "### user\\n" + ("שאלה " * 80) + "\\n### assistant\\n"
+    answer = "תשובה." * 80
+    text = prefix + answer
+    mask = [False] * len(prefix.encode("utf-8")) + [True] * len(answer.encode("utf-8"))
+    corpus = tmp_path / "chat.txt"
+    corpus.write_text(text, encoding="utf-8")
+    result = train(
+        corpus,
+        tmp_path / "output",
+        ModelConfig(context_length=16, d_model=32, n_heads=4, n_layers=1, dropout=0.0),
+        TrainConfig(steps=2, batch_size=2, log_interval=1),
+        "cpu",
+        loss_mask=mask,
+    )
+    assert result["loss_masked"] is True
+    assert result["loss_target"] == "assistant responses only"
+    assert (tmp_path / "output/checkpoint.pt").is_file()
