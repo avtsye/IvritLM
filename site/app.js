@@ -5,6 +5,8 @@
   const API = "https://api.github.com";
   const $ = (id) => document.getElementById(id);
   let token = "";
+  $("corpus-approved").checked = false;
+  $("chat-data-approved").checked = false;
   const form = $("train-form"), submit = $("submit-btn"), message = $("form-message"), runs = $("runs");
   const pretrainForm = $("pretrain-form"), pretrainButton = $("pretrain-btn"), pretrainMessage = $("pretrain-message");
 
@@ -154,6 +156,7 @@
     if (!$("text-license-ack").checked) {
       sayText("יש לאשר שיש לך הרשאה להשתמש בטקסט לאימון.", true); return;
     }
+    $("corpus-approved").checked = false;
     textButton.disabled = true;
     textButton.querySelector("span").textContent = "שומר ב־Google Drive…";
     try {
@@ -182,6 +185,7 @@
       say("יש לאשר את שתי הצהרות המקור.", true);
       return;
     }
+    $("corpus-approved").checked = false;
     submit.disabled = true;
     submit.querySelector("span").textContent = "שולח ל־GitHub…";
     try {
@@ -230,6 +234,7 @@
     if (!Number.isInteger(steps) || steps < 1 || steps > 1000 || !Number.isInteger(batch) || batch < 1 || batch > 16) {
       sayChat("צעדי האימון חייבים להיות 1–1,000 ו-Batch size חייב להיות 1–16.", true); return;
     }
+    $("chat-data-approved").checked = false;
     chatButton.disabled = true;
     chatButton.querySelector("span").textContent = "מפעיל אימון שיחות…";
     try {
@@ -276,6 +281,7 @@
         batch_size:String(batchSize)
       });
       sayPretrain("בקשת האימון התקבלה. אם הנתיב הושאר ריק, המערכת תשתמש בקורפוס האחרון ב-Drive.");
+      $("corpus-approved").checked = false;
       setTimeout(loadRuns, 3000);
     } catch (e) { sayPretrain(e.message, true); }
     finally {
