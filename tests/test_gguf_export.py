@@ -4,6 +4,7 @@ import torch
 from ivritlm.config import ModelConfig
 from ivritlm.model import IvritLM
 from scripts.export_hf import bytes_to_unicode, export
+from scripts.patch_llama_cpp import patch
 
 
 def test_gpt2_byte_mapping_is_lossless():
@@ -31,3 +32,14 @@ def test_export_writes_hf_gpt2_model_and_byte_vocab(tmp_path):
     marker = json.loads((out / "ivritlm_tokenizer.json").read_text(encoding="utf-8"))
     assert marker["tokenizer_type"] == "utf8-byte-v1"
     assert marker["pretokenizer"] == "gpt-2"
+
+def test_llama_cpp_patch_is_guarded_and_idempotent(tmp_path):
+    converter = tmp_path / "conversion"
+    converter.mkdir()
+    base = converter / "base.py"
+    base.write_text("    def get_vocab_base_pre(self, tokenizer) -> str:\\n        return 'unknown'\\n", encoding="utf-8")
+    assert patch(tmp_path) is True
+    assert patch(tmp_path) is False
+    source = base.read_text(encoding="utf-8")
+    assert 'return "gpt-2"' in source
+    assert source.count("ivritlm_tokenizer.json") == 1
