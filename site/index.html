@@ -10,7 +10,7 @@
 <ol>
 <li><b>מחברים את Google Drive פעם אחת:</b> מריצים <code>python scripts/google_drive_auth.py</code> ובוחרים בחלון את קובץ ה-OAuth מסוג Desktop app.</li>
 <li><b>מגדירים ארבעה GitHub Secrets:</b> מעתיקים את DRIVE_CLIENT_ID, DRIVE_CLIENT_SECRET, DRIVE_REFRESH_TOKEN ו-DRIVE_FOLDER_ID למסך Secrets של המאגר.</li>
-<li><b>יוצרים GitHub Token:</b> הרשאת Actions Read and write למאגר IvritLM בלבד, ומדביקים אותו בשדה GitHub token.</li>
+<li><b>מגדירים את שרת הניהול:</b> מוסיפים ב־Render את GH_TOKEN ואת ADMIN_KEY פעם אחת. בדף הניהול מזינים רק את סיסמת הניהול.</li>
 <li><b>מוסיפים חומר:</b> מדביקים טקסט, בוחרים קובץ TXT או מזינים קישור לאתר ציבורי.</li>
 <li><b>מאמנים ומייצאים:</b> בוחרים צעדי אימון ו־Batch size ומפעילים אימון והפקת GGUF.</li>
 </ol>
@@ -25,11 +25,11 @@
 <div class="check"><input id="public-ack" type="checkbox" required><label for="public-ack">המקור ציבורי ואינו דורש התחברות, עוגיות או מפתח גישה.</label></div>
 <button id="submit-btn" type="submit"><span>סריקה ושמירת קורפוס לבדיקה</span><b>←</b></button><p id="form-message" role="status"></p></form></section>
 <aside class="panel"><div class="head"><div><p class="eyebrow">02 / CONNECTION</p><h2>חיבור ל־GitHub</h2></div><small>02</small></div>
-<p class="copy">כדי להפעיל Workflow מתוך הדף, נדרש Fine-grained Personal Access Token עם הרשאות מתאימות למאגר IvritLM.</p>
-<label for="github-token">GitHub token</label><input id="github-token" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
-<p class="hint">האסימון נשמר בזיכרון הדף בלבד. הוא אינו נשמר בדפדפן או במאגר. ניתן לנקות אותו או לסגור את הלשונית.</p>
-<div class="token-actions"><button type="button" id="clear-token" class="secondary">ניקוי אסימון</button><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">יצירת אסימון ↗</a></div>
-<div class="permissions"><b>הרשאות נדרשות</b><ul><li>גישה למאגר IvritLM בלבד</li><li>Actions: Read and write</li><li>Metadata: Read-only (ברירת מחדל)</li></ul></div><div class="permissions" style="margin-top:14px"><b>חיבור Google Drive</b><p>החיבור מתבצע פעם אחת מהמחשב שלך באמצעות Google OAuth. לאחר מכן מוסיפים ארבעה GitHub Actions Secrets; דף הניהול אינו קורא או מציג את פרטי ההתחברות.</p><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md#connect-ivritlm-to-your-google-drive-one-time" target="_blank" rel="noreferrer">פתיחת מדריך חיבור ל־Drive ↗</a></div></aside></div>
+<p class="copy">החיבור ל־GitHub מתבצע דרך שרת מאובטח. אסימון GitHub נשמר ב־Render כמשתנה סודי ואינו נשלח לדפדפן. כאן מזינים רק את סיסמת הניהול שהוגדרה ב־Render.</p>
+<label for="admin-key">סיסמת ניהול</label><input id="admin-key" type="password" placeholder="סיסמת הניהול שלך" autocomplete="current-password" spellcheck="false">
+<p class="hint">הסיסמה משמשת לאימות מול שרת הניהול בלבד. היא אינה אסימון GitHub. אפשר לנתק את החיבור ולנקות אותה מהזיכרון.</p>
+<div class="token-actions"><button type="button" id="clear-key" class="secondary">ניתוק וניקוי סיסמה</button><a href="https://dashboard.render.com" target="_blank" rel="noreferrer">פתיחת Render ↗</a></div>
+<div class="permissions"><b>הגדרה חד־פעמית ב־Render</b><ul><li>GH_TOKEN — אסימון GitHub עם Actions: Read and write למאגר IvritLM בלבד</li><li>ADMIN_KEY — סיסמת ניהול חזקה משלך</li><li>לאחר השמירה, הדף יוכל להפעיל Workflows ולהציג ריצות בלי לחשוף את האסימון</li></ul></div><div class="permissions" style="margin-top:14px"><b>חיבור Google Drive</b><p>החיבור מתבצע פעם אחת מהמחשב שלך באמצעות Google OAuth. לאחר מכן מוסיפים ארבעה GitHub Actions Secrets; דף הניהול אינו קורא או מציג את פרטי ההתחברות.</p><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md#connect-ivritlm-to-your-google-drive-one-time" target="_blank" rel="noreferrer">פתיחת מדריך חיבור ל־Drive ↗</a></div></aside></div>
 <section class="panel paste" id="text-ingestion"><div class="head"><div><p class="eyebrow">02 / ADD TRAINING TEXT</p><h2>הוספת טקסט ישירות למאגר</h2></div><small>טקסט / TXT</small></div>
 <form id="text-form"><label for="training-text">הדבק כאן טקסט בעברית</label><textarea id="training-text" rows="8" maxlength="40000" placeholder="הדבק טקסט בעברית כאן… (עד 40,000 תווים)" required></textarea>
 <div class="file-row"><label for="text-file">או בחר קובץ TXT מהמחשב</label><input id="text-file" type="file" accept=".txt,text/plain"></div>
@@ -49,6 +49,6 @@
 <div class="training-fields"><div><label for="chat-steps">צעדי אימון</label><input id="chat-steps" type="number" min="1" max="1000" value="100" required></div><div><label for="chat-batch">Batch size</label><input id="chat-batch" type="number" min="1" max="16" value="4" required></div></div>
 <p class="hint">נדרש אימון בסיסי קודם. בסיום נשמר checkpoint מעודכן ונוצר GGUF חדש ב־Google Drive.</p>
 <button id="chat-submit-btn" type="submit"><span>אימון שיחות ויצירת GGUF</span><b>←</b></button><p id="chat-message" role="status"></p></form></section>
-<section class="panel runs"><div class="head"><div><p class="eyebrow">04 / ACTIVITY</p><h2>ריצות אחרונות</h2></div><button id="refresh-runs" class="secondary" type="button">רענון ↻</button></div><div id="runs"><p class="empty">הזן אסימון GitHub ולחץ על רענון כדי להציג ריצות.</p></div></section>
+<section class="panel runs"><div class="head"><div><p class="eyebrow">04 / ACTIVITY</p><h2>ריצות אחרונות</h2></div><button id="refresh-runs" class="secondary" type="button">רענון ↻</button></div><div id="runs"><p class="empty">הזן סיסמת ניהול ולחץ על רענון כדי להציג ריצות.</p></div></section>
 <footer><span>IvritLM · Hebrew language model research</span><span><a href="https://github.com/avtsye/IvritLM/blob/main/docs/TRAINING.md">מדריך אימון</a> · <a href="https://github.com/avtsye/IvritLM/blob/main/docs/DATA_POLICY.md">מדיניות נתונים</a></span></footer>
 </main><script src="./app.js" defer></script></body></html>
