@@ -37,7 +37,7 @@ def test_llama_cpp_patch_is_guarded_and_idempotent(tmp_path):
     converter = tmp_path / "conversion"
     converter.mkdir()
     base = converter / "base.py"
-    base.write_text("    def get_vocab_base_pre(self, tokenizer) -> str:\\n        return 'unknown'\\n", encoding="utf-8")
+    base.write_text("    def get_vocab_base_pre(self, tokenizer) -> str:\n        return 'unknown'\n", encoding="utf-8")
     assert patch(tmp_path) is True
     assert patch(tmp_path) is False
     source = base.read_text(encoding="utf-8")
