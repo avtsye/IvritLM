@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ivritlm-source-intake
+  group: ivritlm-model-training
   cancel-in-progress: false
 
 jobs:
