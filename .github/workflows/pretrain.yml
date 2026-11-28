@@ -8,6 +8,13 @@ on:
         required: false
         default: ""
         type: string
+      data_approved:
+        description: Confirm that source rights and the corpus content have been reviewed
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
       steps:
         description: Additional optimizer steps for this run (hosted CPU limit)
         required: true
@@ -65,10 +72,13 @@ jobs:
           CORPUS_PATH: ${{ inputs.corpus_path }}
           STEPS: ${{ inputs.steps }}
           BATCH_SIZE: ${{ inputs.batch_size }}
+          DATA_APPROVED: ${{ inputs.data_approved }}
         run: |
           python - <<'PY'
           import os
           from pathlib import Path
+          if os.environ.get("DATA_APPROVED") != "yes":
+              raise SystemExit("Review the source rights and corpus contents before training.")
           required = ["DRIVE_CLIENT_ID", "DRIVE_CLIENT_SECRET", "DRIVE_REFRESH_TOKEN", "DRIVE_FOLDER_ID"]
           missing = [name for name in required if not os.environ.get(name)]
           if missing:
