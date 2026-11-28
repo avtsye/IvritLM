@@ -90,6 +90,8 @@ def main():
     text, count, loss_mask = load_chat_jsonl_with_mask(args.input)
     corpus_path = Path(args.output) / "chat-training.txt"
     corpus_path.parent.mkdir(parents=True, exist_ok=True)
+    text = text.strip()  # training.read_corpus() strips outer whitespace too
+    loss_mask = loss_mask[:len(text.encode("utf-8"))]
     corpus_path.write_text(text, encoding="utf-8")
     result = train(
         corpus_path, args.output, config,
